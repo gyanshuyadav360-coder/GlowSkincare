@@ -1,72 +1,66 @@
-import React, { useState, useEffect } from 'react';
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlowSkincare - Investment App</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 flex justify-center items-center min-h-screen">
+  <div id="root" class="w-full max-w-md bg-white shadow-2xl min-h-screen relative overflow-hidden"></div>
 
-export default function App() {
-  // Navigation State
-  const [currentTab, setCurrentTab] = useState('home'); // home, invest, myPlans, spin, invite, profile, recharge, withdraw, vip
-
-  // User Authentication & Wallet State
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState({
-    phone: '',
-    inviteCode: '',
-    rechargeWallet: 0,
-    withdrawWallet: 0,
-    vipLevel: 0, // 0 means default/no VIP purchased yet
-    spinChances: 0,
-    bankDetails: null, // { name, accountNo, ifsc }
-    bankLocked: false
-  });
-
-  // Auth Inputs
-  const [phoneInput, setPhoneInput] = useState('');
-  const [passInput, setPassInput] = useState('');
-  const [inviteInput, setInviteInput] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-
-  // Plans State
-  const [myPlans, setMyPlans] = useState([]); // Array of purchased plans
-  const [rechargeAmount, setRechargeAmount] = useState('');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-
-  // Bank Form State
-  const [bankName, setBankName] = useState('');
-  const [accNo, setAccNo] = useState('');
-  const [ifsc, setIfsc] = useState('');
-
-  // Spin Wheel State
-  const [spinning, setSpinning] = useState(false);
-  const [spinResult, setSpinResult] = useState(null);
-
-  // Helper to generate random invite code
-  const generateInviteCode = () => {
-    return Math.random().toString(36.substring(2, 8)).toUpperCase();
-  };
-
-  const handleAuth = (e) => {
-    e.preventDefault();
-    if (!phoneInput || !passInput) {
-      alert('Please fill all fields');
-      return;
-    }
-    if (isRegistering && !inviteInput) {
-      alert('Invitation code is required to register!');
-      return;
-    }
-
-    if (isRegistering) {
-      setUser({
-        phone: phoneInput,
-        inviteCode: generateInviteCode(),
+  <script type="text/babel">
+    function App() {
+      const [currentTab, setCurrentTab] = React.useState('home');
+      const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+      const [user, setUser] = React.useState({
+        phone: '',
+        inviteCode: '',
         rechargeWallet: 0,
         withdrawWallet: 0,
         vipLevel: 0,
-        spinChances: 1, // 1 free spin on signup
+        spinChances: 0,
         bankDetails: null,
         bankLocked: false
       });
-      alert('Account created successfully!');
-    } else {
-      if (!user.phone) {
+
+      const [phoneInput, setPhoneInput] = React.useState('');
+      const [passInput, setPassInput] = React.useState('');
+      const [inviteInput, setInviteInput] = React.useState('');
+      const [isRegistering, setIsRegistering] = React.useState(false);
+
+      const [myPlans, setMyPlans] = React.useState([]);
+      const [rechargeAmount, setRechargeAmount] = React.useState('');
+      const [withdrawAmount, setWithdrawAmount] = React.useState('');
+
+      const [bankName, setBankName] = React.useState('');
+      const [accNo, setAccNo] = React.useState('');
+      const [ifsc, setIfsc] = React.useState('');
+
+      const [spinning, setSpinning] = React.useState(false);
+      const [spinResult, setSpinResult] = React.useState(null);
+
+      const generateInviteCode = () => {
+        return Math.random().toString(36).substring(2, 8).toUpperCase();
+      };
+
+      const handleAuth = (e) => {
+        e.preventDefault();
+        if (!phoneInput || !passInput) {
+          alert('कृपया सभी फ़ील्ड भरें');
+          return;
+        }
+        if (isRegistering && !inviteInput) {
+          alert('रजिस्टर करने के लिए इनविटेशन कोड आवश्यक है!');
+          return;
+        }
+
         setUser({
           phone: phoneInput,
           inviteCode: generateInviteCode(),
@@ -77,668 +71,625 @@ export default function App() {
           bankDetails: null,
           bankLocked: false
         });
-      }
-    }
-    setIsLoggedIn(true);
-    setCurrentTab('home');
-  };
+        setIsLoggedIn(true);
+        setCurrentTab('home');
+      };
 
-  // Buy Plan ₹150 (Max 5 purchases)
-  const handleBuyPlan = () => {
-    const planPrice = 150;
-    const currentCount = myPlans.filter(p => p.id === 1).length;
+      const handleBuyPlan = () => {
+        const planPrice = 150;
+        const currentCount = myPlans.filter(p => p.id === 1).length;
 
-    if (currentCount >= 5) {
-      alert('Purchase limit reached! Max 5 purchases allowed.');
-      return;
-    }
+        if (currentCount >= 5) {
+          alert('खरीद सीमा पूरी हो गई! अधिकतम 5 प्लान खरीद सकते हैं।');
+          return;
+        }
 
-    if (user.rechargeWallet < planPrice) {
-      alert('Insufficient Recharge Wallet balance! Please recharge first.');
-      setCurrentTab('recharge');
-      return;
-    }
+        if (user.rechargeWallet < planPrice) {
+          alert('रिचार्ज वॉलेट में पर्याप्त बैलेंस नहीं है! कृपया पहले रिचार्ज करें।');
+          setCurrentTab('recharge');
+          return;
+        }
 
-    // Deduct from recharge wallet
-    setUser(prev => ({
-      ...prev,
-      rechargeWallet: prev.rechargeWallet - planPrice,
-      spinChances: prev.spinChances + 1 // +1 Spin on Investment
-    }));
-
-    // Add Plan
-    const newPlan = {
-      purchaseId: Date.now(),
-      id: 1,
-      name: 'Daily Skincare Starter Plan',
-      price: planPrice,
-      dailyIncome: 100,
-      durationDays: 49,
-      purchaseDate: new Date().getTime(),
-      claimed: false
-    };
-
-    setMyPlans([...myPlans, newPlan]);
-    alert('Plan purchased successfully! You also received 1 Free Spin.');
-  };
-
-  // Claim Mature Plan (After 49 Days)
-  const handleClaimPlan = (purchaseId) => {
-    const plan = myPlans.find(p => p.purchaseId === purchaseId);
-    if (!plan || plan.claimed) return;
-
-    const daysPassed = (new Date().getTime() - plan.purchaseDate) / (1000 * 60 * 60 * 24);
-    if (daysPassed < plan.durationDays) {
-      alert('Plan is still locked! 49 days have not completed yet.');
-      return;
-    }
-
-    const totalReturn = plan.dailyIncome * plan.durationDays; // ₹4900
-
-    setUser(prev => ({
-      ...prev,
-      withdrawWallet: prev.withdrawWallet + totalReturn
-    }));
-
-    setMyPlans(myPlans.map(p => p.purchaseId === purchaseId ? { ...p, claimed: true } : p));
-    alert(`Congratulations! ₹${totalReturn} added to your Withdrawal Wallet.`);
-  };
-
-  // Recharge Wallet Action
-  const handleRechargeSubmit = (e) => {
-    e.preventDefault();
-    const amt = parseFloat(rechargeAmount);
-    if (!amt || amt <= 0) {
-      alert('Enter valid amount');
-      return;
-    }
-
-    setUser(prev => ({
-      ...prev,
-      rechargeWallet: prev.rechargeWallet + amt
-    }));
-    setRechargeAmount('');
-    alert(`Successfully recharged ₹${amt}`);
-    setCurrentTab('profile');
-  };
-
-  // Withdraw Action (Only from withdrawal wallet, bank must be locked)
-  const handleWithdrawSubmit = (e) => {
-    e.preventDefault();
-    const amt = parseFloat(withdrawAmount);
-
-    if (!user.bankLocked) {
-      alert('Please save your bank details first before withdrawal!');
-      return;
-    }
-
-    if (!amt || amt <= 0) {
-      alert('Enter a valid withdrawal amount');
-      return;
-    }
-
-    if (amt > user.withdrawWallet) {
-      alert('Insufficient Withdrawal Wallet balance!');
-      return;
-    }
-
-    setUser(prev => ({
-      ...prev,
-      withdrawWallet: prev.withdrawWallet - amt
-    }));
-    setWithdrawAmount('');
-    alert(`Withdrawal request of ₹${amt} placed successfully!`);
-  };
-
-  // Save Bank Details (Only Once)
-  const handleSaveBank = (e) => {
-    e.preventDefault();
-    if (!bankName || !accNo || !ifsc) {
-      alert('Please fill all bank details');
-      return;
-    }
-
-    setUser(prev => ({
-      ...prev,
-      bankDetails: { name: bankName, accountNo: accNo, ifsc: ifsc },
-      bankLocked: true
-    }));
-    alert('Bank details saved securely and locked permanently!');
-  };
-
-  // VIP Purchase (Sequential: VIP 1 then VIP 2 etc.)
-  const handleBuyVip = (level, price) => {
-    if (user.vipLevel !== level - 1) {
-      alert(`You must buy VIP ${level - 1} first!`);
-      return;
-    }
-
-    if (user.rechargeWallet < price) {
-      alert('Insufficient Recharge Wallet balance to upgrade VIP!');
-      setCurrentTab('recharge');
-      return;
-    }
-
-    setUser(prev => ({
-      ...prev,
-      rechargeWallet: prev.rechargeWallet - price,
-      vipLevel: level
-    }));
-    alert(`Congratulations! You are now upgraded to VIP ${level}`);
-  };
-
-  // Spin Wheel Trigger
-  const handleSpinWheel = () => {
-    if (user.spinChances <= 0) {
-      alert('No spin chances left! Buy a plan or invite friends to get spins.');
-      return;
-    }
-
-    setSpinning(true);
-    setUser(prev => ({ ...prev, spinChances: prev.spinChances - 1 }));
-
-    setTimeout(() => {
-      const rewards = [10, 20, 50, 100, 0, 200, 50];
-      const randomReward = rewards[Math.floor(Math.random() * rewards.length)];
-      setSpinResult(randomReward);
-      setSpinning(false);
-
-      if (randomReward > 0) {
         setUser(prev => ({
           ...prev,
-          withdrawWallet: prev.withdrawWallet + randomReward
+          rechargeWallet: prev.rechargeWallet - planPrice,
+          spinChances: prev.spinChances + 1
         }));
-      }
-    }, 2000);
-  };
 
-  // If not logged in, render Auth Screen
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-pink-50 flex flex-col justify-center items-center p-4 font-sans">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-pink-600">✨ GlowSkincare ✨</h1>
-            <p className="text-gray-500 text-sm mt-1">Daily Investment & Rewards Platform</p>
-          </div>
+        const newPlan = {
+          purchaseId: Date.now(),
+          id: 1,
+          name: 'Daily Skincare Starter Plan',
+          price: planPrice,
+          dailyIncome: 100,
+          durationDays: 49,
+          purchaseDate: new Date().getTime(),
+          claimed: false
+        };
 
-          <div className="flex bg-pink-100 p-1 rounded-xl mb-6">
-            <button
-              onClick={() => setIsRegistering(false)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${!isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
-            >
-              Login
-            </button>
-            <button
-              onClick={() => setIsRegistering(true)}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
-            >
-              Register
-            </button>
-          </div>
+        setMyPlans([...myPlans, newPlan]);
+        alert('प्लान सफलतापूर्वक खरीद लिया गया है! आपको 1 फ्री स्पिन भी मिला है।');
+      };
 
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Mobile Number</label>
-              <input
-                type="text"
-                placeholder="Enter mobile number"
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-              />
-            </div>
+      const handleClaimPlan = (purchaseId) => {
+        const plan = myPlans.find(p => p.purchaseId === purchaseId);
+        if (!plan || plan.claimed) return;
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Password</label>
-              <input
-                type="password"
-                placeholder="Enter password"
-                value={passInput}
-                onChange={(e) => setPassInput(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-              />
-            </div>
+        const daysPassed = (new Date().getTime() - plan.purchaseDate) / (1000 * 60 * 60 * 24);
+        if (daysPassed < plan.durationDays) {
+          alert('प्लान अभी लॉक है! 49 दिन अभी पूरे नहीं हुए हैं।');
+          return;
+        }
 
-            {isRegistering && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Invitation Code (Required)</label>
-                <input
-                  type="text"
-                  placeholder="Enter invitation code (e.g. D637A)"
-                  value={inviteInput}
-                  onChange={(e) => setInviteInput(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-                />
+        const totalReturn = plan.dailyIncome * plan.durationDays;
+
+        setUser(prev => ({
+          ...prev,
+          withdrawWallet: prev.withdrawWallet + totalReturn
+        }));
+
+        setMyPlans(myPlans.map(p => p.purchaseId === purchaseId ? { ...p, claimed: true } : p));
+        alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
+      };
+
+      const handleRechargeSubmit = (e) => {
+        e.preventDefault();
+        const amt = parseFloat(rechargeAmount);
+        if (!amt || amt <= 0) {
+          alert('कृपया सही राशि दर्ज करें');
+          return;
+        }
+
+        setUser(prev => ({
+          ...prev,
+          rechargeWallet: prev.rechargeWallet + amt
+        }));
+        setRechargeAmount('');
+        alert(`₹${amt} सफलतापूर्वक रिचार्ज हो गया है!`);
+        setCurrentTab('profile');
+      };
+
+      const handleWithdrawSubmit = (e) => {
+        e.preventDefault();
+        const amt = parseFloat(withdrawAmount);
+
+        if (!user.bankLocked) {
+          alert('कृपया पैसे निकालने से पहले अपनी बैंक डिटेल्स सेव करें!');
+          return;
+        }
+
+        if (!amt || amt <= 0) {
+          alert('कृपया सही विथड्रॉल राशि दर्ज करें');
+          return;
+        }
+
+        if (amt > user.withdrawWallet) {
+          alert('विथड्रॉल वॉलेट में पर्याप्त बैलेंस नहीं है!');
+          return;
+        }
+
+        setUser(prev => ({
+          ...prev,
+          withdrawWallet: prev.withdrawWallet - amt
+        }));
+        setWithdrawAmount('');
+        alert(`₹${amt} का विथड्रॉल अनुरोध सफलताપूर्वक दर्ज हो गया है!`);
+      };
+
+      const handleSaveBank = (e) => {
+        e.preventDefault();
+        if (!bankName || !accNo || !ifsc) {
+          alert('कृपया सभी बैंक विवरण भरें');
+          return;
+        }
+
+        setUser(prev => ({
+          ...prev,
+          bankDetails: { name: bankName, accountNo: accNo, ifsc: ifsc },
+          bankLocked: true
+        }));
+        alert('बैंक विवरण सुरक्षित रूप से सेव और लॉक कर दिए गए हैं!');
+      };
+
+      const handleBuyVip = (level, price) => {
+        if (user.vipLevel !== level - 1) {
+          alert(`पहले VIP ${level - 1} खरीदना अनिवार्य है!`);
+          return;
+        }
+
+        if (user.rechargeWallet < price) {
+          alert('VIP अपग्रेड करने के लिए रिचार्ज वॉलेट में पर्याप्त बैलेंस नहीं है!');
+          setCurrentTab('recharge');
+          return;
+        }
+
+        setUser(prev => ({
+          ...prev,
+          rechargeWallet: prev.rechargeWallet - price,
+          vipLevel: level
+        }));
+        alert(`बधाई हो! अब आप VIP ${level} के सदस्य बन गए हैं।`);
+      };
+
+      const handleSpinWheel = () => {
+        if (user.spinChances <= 0) {
+          alert('कोई स्पिन चांस नहीं बचा है! प्लान खरीदें या दोस्तों को इनवाइट करें।');
+          return;
+        }
+
+        setSpinning(true);
+        setUser(prev => ({ ...prev, spinChances: prev.spinChances - 1 }));
+
+        setTimeout(() => {
+          const rewards = [10, 20, 50, 100, 0, 200, 50];
+          const randomReward = rewards[Math.floor(Math.random() * rewards.length)];
+          setSpinResult(randomReward);
+          setSpinning(false);
+
+          if (randomReward > 0) {
+            setUser(prev => ({
+              ...prev,
+              withdrawWallet: prev.withdrawWallet + randomReward
+            }));
+          }
+        }, 2000);
+      };
+
+      if (!isLoggedIn) {
+        return (
+          <div className="min-h-screen bg-pink-50 flex flex-col justify-center items-center p-4">
+            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-pink-600">✨ GlowSkincare ✨</h1>
+                <p className="text-gray-500 text-sm mt-1">डेली इन्वेस्टमेंट और रिवॉर्ड प्लेटफॉर्म</p>
               </div>
-            )}
 
-            <button
-              type="submit"
-              className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl shadow-lg transition duration-200 mt-2"
-            >
-              {isRegistering ? 'Register Account' : 'Login'}
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
+              <div className="flex bg-pink-100 p-1 rounded-xl mb-6">
+                <button
+                  onClick={() => setIsRegistering(false)}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${!isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
+                >
+                  लॉगिन (Login)
+                </button>
+                <button
+                  onClick={() => setIsRegistering(true)}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
+                >
+                  रजिस्टर (Register)
+                </button>
+              </div>
 
-  // Main Logged In App Layout
-  return (
-    <div className="min-h-screen bg-gray-50 pb-20 font-sans max-w-md mx-auto relative shadow-2xl overflow-hidden border-x border-gray-200">
-      
-      {/* Top Header */}
-      <div className="bg-pink-600 text-white p-4 flex justify-between items-center shadow-md">
-        <div>
-          <h2 className="font-bold text-lg">GlowSkincare</h2>
-          <p className="text-xs text-pink-200">VIP Level: {user.vipLevel}</p>
-        </div>
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setCurrentTab('recharge')}
-            className="bg-white text-pink-600 px-3 py-1 rounded-lg text-xs font-bold shadow hover:bg-pink-50"
-          >
-            Recharge
-          </button>
-          <button 
-            onClick={() => setIsLoggedIn(false)}
-            className="bg-pink-700 text-white px-2 py-1 rounded-lg text-xs"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* Content Body */}
-      <div className="p-4 overflow-y-auto">
-        
-        {/* HOME TAB */}
-        {currentTab === 'home' && (
-          <div className="space-y-4">
-            {/* Wallet Banner */}
-            <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
-              <div className="flex justify-between items-center mb-4">
+              <form onSubmit={handleAuth} className="space-y-4">
                 <div>
-                  <p className="text-xs text-pink-100">Recharge Wallet (For Investment)</p>
-                  <h3 className="text-2xl font-bold">₹{user.rechargeWallet.toFixed(2)}</h3>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">मोबाइल नंबर</label>
+                  <input
+                    type="text"
+                    placeholder="मोबाइल नंबर दर्ज करें"
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  />
                 </div>
-                <button onClick={() => setCurrentTab('recharge')} className="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg text-xs font-semibold backdrop-blur">
-                  + Add Funds
-                </button>
-              </div>
-              <div className="pt-3 border-t border-white/20 flex justify-between items-center">
+
                 <div>
-                  <p className="text-xs text-pink-100">Withdrawal Wallet (Earnings)</p>
-                  <h3 className="text-xl font-bold">₹{user.withdrawWallet.toFixed(2)}</h3>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">पासवर्ड</label>
+                  <input
+                    type="password"
+                    placeholder="पासवर्ड दर्ज करें"
+                    value={passInput}
+                    onChange={(e) => setPassInput(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                  />
                 </div>
-                <button onClick={() => setCurrentTab('withdraw')} className="bg-white text-pink-600 px-3 py-1 rounded-lg text-xs font-semibold shadow">
-                  Withdraw
-                </button>
-              </div>
-            </div>
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <button onClick={() => setCurrentTab('invest')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                <span className="text-xl mb-1">💎</span>
-                <span className="text-xs text-gray-700 font-medium">Invest</span>
-              </button>
-              <button onClick={() => setCurrentTab('spin')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                <span className="text-xl mb-1">🎡</span>
-                <span className="text-xs text-gray-700 font-medium">Spin</span>
-              </button>
-              <button onClick={() => setCurrentTab('invite')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                <span className="text-xl mb-1">👥</span>
-                <span className="text-xs text-gray-700 font-medium">Invite</span>
-              </button>
-              <button onClick={() => setCurrentTab('vip')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                <span className="text-xl mb-1">⭐</span>
-                <span className="text-xs text-gray-700 font-medium">VIP</span>
-              </button>
-            </div>
-
-            {/* Announcements */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-              <h4 className="font-bold text-sm text-gray-800 mb-2">📢 Notice & Rules</h4>
-              <ul className="text-xs text-gray-600 space-y-1 list-disc pl-4">
-                <li>Invest ₹150 and earn ₹100 daily for 49 days.</li>
-                <li>Recharged balance is only for buying plans and is non-withdrawable.</li>
-                <li>Withdrawal wallet funds can be withdrawn after setting bank details.</li>
-                <li>Bank details can be configured and locked only once.</li>
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {/* INVEST TAB */}
-        {currentTab === 'invest' && (
-          <div className="space-y-4">
-            <h3 className="font-bold text-gray-800 text-base">Active Investment Plans</h3>
-
-            {/* Active ₹150 Plan Card */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-pink-100 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-pink-600 text-white text-[10px] px-3 py-1 rounded-bl-xl font-bold">
-                {myPlans.filter(p => p.id === 1).length}/5 Bought
-              </div>
-              <h4 className="font-bold text-pink-600 text-base mb-1">Daily Skincare Starter Plan</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 my-3 bg-pink-50 p-3 rounded-xl">
-                <div>Price: <span className="font-bold text-gray-900">₹150</span></div>
-                <div>Daily Income: <span className="font-bold text-green-600">₹100</span></div>
-                <div>Duration: <span className="font-bold text-gray-900">49 Days</span></div>
-                <div>Total Return: <span className="font-bold text-pink-600">₹4900</span></div>
-              </div>
-              <button
-                onClick={handleBuyPlan}
-                disabled={myPlans.filter(p => p.id === 1).length >= 5}
-                className={`w-full py-2.5 rounded-xl text-white font-semibold text-sm shadow ${myPlans.filter(p => p.id === 1).length >= 5 ? 'bg-gray-300 cursor-not-allowed' : 'bg-pink-600 hover:bg-pink-700'}`}
-              >
-                {myPlans.filter(p => p.id === 1).length >= 5 ? 'Limit Reached (Max 5)' : 'Buy Plan (₹150)'}
-              </button>
-            </div>
-
-            {/* Coming Soon Plans */}
-            <h3 className="font-bold text-gray-800 text-base mt-6">Coming Soon Plans</h3>
-            
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 opacity-75 relative">
-              <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">
-                Coming Soon
-              </div>
-              <h4 className="font-bold text-gray-800 text-base mb-1">Advanced Skincare Pro Plan</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 my-3 bg-gray-50 p-3 rounded-xl">
-                <div>Price: <span className="font-bold text-gray-900">₹500</span></div>
-                <div>Daily Income: <span className="font-bold text-gray-900">₹350</span></div>
-                <div>Duration: <span className="font-bold text-gray-900">49 Days</span></div>
-                <div>Total Return: <span className="font-bold text-gray-900">₹17,150</span></div>
-              </div>
-              <button disabled className="w-full py-2.5 rounded-xl bg-gray-200 text-gray-500 font-semibold text-sm cursor-not-allowed">
-                Coming Soon
-              </button>
-            </div>
-
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 opacity-75 relative">
-              <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">
-                Coming Soon
-              </div>
-              <h4 className="font-bold text-gray-800 text-base mb-1">Exclusive VIP Skincare Plan</h4>
-              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 my-3 bg-gray-50 p-3 rounded-xl">
-                <div>Price: <span className="font-bold text-gray-900">₹1000</span></div>
-                <div>Daily Income: <span className="font-bold text-gray-900">₹750</span></div>
-                <div>Duration: <span className="font-bold text-gray-900">49 Days</span></div>
-                <div>Total Return: <span className="font-bold text-gray-900">₹36,750</span></div>
-              </div>
-              <button disabled className="w-full py-2.5 rounded-xl bg-gray-200 text-gray-500 font-semibold text-sm cursor-not-allowed">
-                Coming Soon
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* MY PLANS TAB */}
-        {currentTab === 'myPlans' && (
-          <div className="space-y-4">
-            <h3 className="font-bold text-gray-800 text-base">My Purchased Plans</h3>
-            {myPlans.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
-                <p className="text-gray-400 text-sm">No active plans found.</p>
-                <button onClick={() => setCurrentTab('invest')} className="mt-3 text-pink-600 font-semibold text-xs underline">
-                  Go to Invest
-                </button>
-              </div>
-            ) : (
-              myPlans.map((p) => {
-                const daysPassed = Math.floor((new Date().getTime() - p.purchaseDate) / (1000 * 60 * 60 * 24));
-                const remainingDays = Math.max(0, p.durationDays - daysPassed);
-                const isReady = remainingDays === 0 && !p.claimed;
-
-                return (
-                  <div key={p.purchaseId} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-sm text-gray-800">{p.name}</h4>
-                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${p.claimed ? 'bg-gray-100 text-gray-600' : isReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {p.claimed ? 'Claimed' : isReady ? 'Ready to Claim' : `Locked: ${remainingDays} days left`}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-500 space-y-1 mb-3">
-                      <div>Invested: ₹{p.price} | Daily: ₹{p.dailyIncome}</div>
-                      <div>Total Earning on Maturity: <span className="font-bold text-pink-600">₹4900</span></div>
-                    </div>
-                    {!p.claimed && (
-                      <button
-                        onClick={() => handleClaimPlan(p.purchaseId)}
-                        disabled={!isReady}
-                        className={`w-full py-2 rounded-xl text-xs font-semibold shadow ${isReady ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                      >
-                        {isReady ? 'Claim ₹4900 to Withdrawal Wallet' : `Available after ${remainingDays} Days`}
-                      </button>
-                    )}
+                {isRegistering && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">इनविटेशन कोड (आवश्यक)</label>
+                    <input
+                      type="text"
+                      placeholder="इनविटेशन कोड दर्ज करें (जैसे D637A)"
+                      value={inviteInput}
+                      onChange={(e) => setInviteInput(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    />
                   </div>
-                );
-              })
-            )}
-          </div>
-        )}
+                )}
 
-        {/* SPIN TAB */}
-        {currentTab === 'spin' && (
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 flex flex-col items-center space-y-4">
-            <h3 className="font-bold text-lg text-gray-800">Lucky Spin Wheel</h3>
-            <p className="text-xs text-gray-500">Get 1 free spin on every Plan Investment or Friend Invite!</p>
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl shadow-lg transition duration-200 mt-2"
+                >
+                  {isRegistering ? 'अकाउंट बनाएं' : 'लॉगिन करें'}
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-50 pb-20 font-sans max-w-md mx-auto relative shadow-2xl overflow-hidden border-x border-gray-200">
+          
+          <div className="bg-pink-600 text-white p-4 flex justify-between items-center shadow-md">
+            <div>
+              <h2 className="font-bold text-lg">GlowSkincare</h2>
+              <p className="text-xs text-pink-200">VIP Level: {user.vipLevel}</p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setCurrentTab('recharge')}
+                className="bg-white text-pink-600 px-3 py-1 rounded-lg text-xs font-bold shadow"
+              >
+                रिचार्ज
+              </button>
+              <button 
+                onClick={() => setIsLoggedIn(false)}
+                className="bg-pink-700 text-white px-2 py-1 rounded-lg text-xs"
+              >
+                लॉग आउट
+              </button>
+            </div>
+          </div>
+
+          <div className="p-4 overflow-y-auto">
             
-            <div className="bg-pink-50 px-4 py-2 rounded-xl font-bold text-pink-600 text-sm">
-              Available Spins: {user.spinChances}
-            </div>
+            {currentTab === 'home' && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-5 text-white shadow-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <p className="text-xs text-pink-100">रिचार्ज वॉलेट (सिर्फ निवेश के लिए)</p>
+                      <h3 className="text-2xl font-bold">₹{user.rechargeWallet.toFixed(2)}</h3>
+                    </div>
+                    <button onClick={() => setCurrentTab('recharge')} className="bg-white/20 px-3 py-1 rounded-lg text-xs font-semibold">
+                      + पैसे जोड़ें
+                    </button>
+                  </div>
+                  <div className="pt-3 border-t border-white/20 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-pink-100">विथड्रॉल वॉलेट (कमाई)</p>
+                      <h3 className="text-xl font-bold">₹{user.withdrawWallet.toFixed(2)}</h3>
+                    </div>
+                    <button onClick={() => setCurrentTab('withdraw')} className="bg-white text-pink-600 px-3 py-1 rounded-lg text-xs font-semibold shadow">
+                      विथड्रॉल करें
+                    </button>
+                  </div>
+                </div>
 
-            <div className={`w-48 h-48 rounded-full border-8 border-pink-500 flex items-center justify-center bg-gradient-to-tr from-pink-400 to-rose-500 text-white font-bold text-xl shadow-inner ${spinning ? 'animate-spin' : ''}`}>
-              {spinning ? 'Spinning...' : '🎯 SPIN'}
-            </div>
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  <button onClick={() => setCurrentTab('invest')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <span className="text-xl mb-1">💎</span>
+                    <span className="text-xs text-gray-700 font-medium">इन्वेस्ट</span>
+                  </button>
+                  <button onClick={() => setCurrentTab('spin')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <span className="text-xl mb-1">🎡</span>
+                    <span className="text-xs text-gray-700 font-medium">स्पिन</span>
+                  </button>
+                  <button onClick={() => setCurrentTab('invite')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <span className="text-xl mb-1">👥</span>
+                    <span className="text-xs text-gray-700 font-medium">इनवाइट</span>
+                  </button>
+                  <button onClick={() => setCurrentTab('vip')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <span className="text-xl mb-1">⭐</span>
+                    <span className="text-xs text-gray-700 font-medium">VIP</span>
+                  </button>
+                </div>
 
-            {spinResult !== null && (
-              <div className="text-green-600 font-bold text-sm bg-green-50 px-4 py-2 rounded-xl">
-                {spinResult > 0 ? `Won ₹${spinResult} added to Withdrawal Wallet!` : 'Better luck next time!'}
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                  <h4 className="font-bold text-sm text-gray-800 mb-2">📢 नियम व शर्तें</h4>
+                  <ul className="text-xs text-gray-600 space-y-1 list-disc pl-4">
+                    <li>₹150 निवेश करें और 49 दिनों तक रोज़ ₹100 कमाएं।</li>
+                    <li>रिचार्ज किया हुआ पैसा वापस नहीं निकाला जा सकता, उससे केवल प्लान खरीदा जा सकता है।</li>
+                    <li>कमाई का पैसा बैंक में निकालने के लिए बैंक विवरण जोड़ना अनिवार्य है।</li>
+                    <li>बैंक डिटेल्स केवल एक ही बार सेव की जा सकती हैं।</li>
+                  </ul>
+                </div>
               </div>
             )}
 
-            <button
-              onClick={handleSpinWheel}
-              disabled={spinning}
-              className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl text-sm shadow"
-            >
-              {spinning ? 'Spinning...' : 'Start Spin'}
-            </button>
-          </div>
-        )}
+            {currentTab === 'invest' && (
+              <div className="space-y-4">
+                <h3 className="font-bold text-gray-800 text-base">एक्टिव इन्वेस्टमेंट प्लान्स</h3>
 
-        {/* INVITE TAB */}
-        {currentTab === 'invite' && (
-          <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 space-y-4">
-            <h3 className="font-bold text-lg text-gray-800">Invite Friends & Earn</h3>
-            <p className="text-xs text-gray-500">Share your invite code with friends. When they invest, you get a free spin & rewards!</p>
-
-            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <p className="text-xs text-gray-500 mb-1">Your Invitation Code</p>
-              <h2 className="text-2xl font-black text-pink-600 tracking-wider">{user.inviteCode}</h2>
-            </div>
-
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(`https://www.greatskincare7.ru/?invitation_code=${user.inviteCode}`);
-                alert('Invite link copied to clipboard!');
-              }}
-              className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl text-sm shadow"
-            >
-              Copy Invitation Link
-            </button>
-          </div>
-        )}
-
-        {/* VIP TAB */}
-        {currentTab === 'vip' && (
-          <div className="space-y-4">
-            <div className="bg-gradient-to-r from-amber-500 to-yellow-500 p-4 rounded-2xl text-white shadow-md flex justify-between items-center">
-              <div>
-                <p className="text-xs text-yellow-100">Current Level</p>
-                <h3 className="text-xl font-bold">VIP {user.vipLevel}</h3>
-              </div>
-              <span className="text-3xl">⭐</span>
-            </div>
-
-            <div className="space-y-3">
-              {/* VIP 1 */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-sm text-gray-800">VIP 1</h4>
-                  <p className="text-xs text-gray-500">Price: ₹500 | Unlocks daily bonus tasks</p>
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-pink-100 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 bg-pink-600 text-white text-[10px] px-3 py-1 rounded-bl-xl font-bold">
+                    {myPlans.filter(p => p.id === 1).length}/5 खरीदा गया
+                  </div>
+                  <h4 className="font-bold text-pink-600 text-base mb-1">Daily Skincare Starter Plan</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 my-3 bg-pink-50 p-3 rounded-xl">
+                    <div>मूल्य: <span className="font-bold text-gray-900">₹150</span></div>
+                    <div>दैनिक आय: <span className="font-bold text-green-600">₹100</span></div>
+                    <div>अवधि: <span className="font-bold text-gray-900">49 दिन</span></div>
+                    <div>कुल रिटर्न: <span className="font-bold text-pink-600">₹4900</span></div>
+                  </div>
+                  <button
+                    onClick={handleBuyPlan}
+                    disabled={myPlans.filter(p => p.id === 1).length >= 5}
+                    className={`w-full py-2.5 rounded-xl text-white font-semibold text-sm shadow ${myPlans.filter(p => p.id === 1).length >= 5 ? 'bg-gray-300 cursor-not-allowed' : 'bg-pink-600 hover:bg-pink-700'}`}
+                  >
+                    {myPlans.filter(p => p.id === 1).length >= 5 ? 'लिमिट पूरी हुई (अधिकतम 5)' : 'प्लान खरीदें (₹150)'}
+                  </button>
                 </div>
+
+                <h3 className="font-bold text-gray-800 text-base mt-6">आने वाले प्लान्स (Coming Soon)</h3>
+                
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 opacity-75 relative">
+                  <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">
+                    Coming Soon
+                  </div>
+                  <h4 className="font-bold text-gray-800 text-base mb-1">Advanced Skincare Pro Plan</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 my-3 bg-gray-50 p-3 rounded-xl">
+                    <div>मूल्य: <span className="font-bold text-gray-900">₹500</span></div>
+                    <div>दैनिक आय: <span className="font-bold text-gray-900">₹350</span></div>
+                    <div>अवधि: <span className="font-bold text-gray-900">49 दिन</span></div>
+                    <div>कुल रिटर्न: <span className="font-bold text-gray-900">₹17,150</span></div>
+                  </div>
+                  <button disabled className="w-full py-2.5 rounded-xl bg-gray-200 text-gray-500 font-semibold text-sm cursor-not-allowed">
+                    जल्द आ रहा है
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {currentTab === 'myPlans' && (
+              <div className="space-y-4">
+                <h3 className="font-bold text-gray-800 text-base">मेरे खरीदे गए प्लान्स</h3>
+                {myPlans.length === 0 ? (
+                  <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+                    <p className="text-gray-400 text-sm">कोई एक्टिव प्लान नहीं मिला।</p>
+                    <button onClick={() => setCurrentTab('invest')} className="mt-3 text-pink-600 font-semibold text-xs underline">
+                      इन्वेस्ट पेज पर जाएं
+                    </button>
+                  </div>
+                ) : (
+                  myPlans.map((p) => {
+                    const daysPassed = Math.floor((new Date().getTime() - p.purchaseDate) / (1000 * 60 * 60 * 24));
+                    const remainingDays = Math.max(0, p.durationDays - daysPassed);
+                    const isReady = remainingDays === 0 && !p.claimed;
+
+                    return (
+                      <div key={p.purchaseId} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-bold text-sm text-gray-800">{p.name}</h4>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${p.claimed ? 'bg-gray-100 text-gray-600' : isReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {p.claimed ? 'क्लेम हो गया' : isReady ? 'क्लेम करने के लिए तैयार' : `लॉक: ${remainingDays} दिन बाकी`}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500 space-y-1 mb-3">
+                          <div>इन्वेस्टेड: ₹{p.price} | दैनिक: ₹{p.dailyIncome}</div>
+                          <div>मेच्योरिटी पर कुल कमाई: <span className="font-bold text-pink-600">₹4900</span></div>
+                        </div>
+                        {!p.claimed && (
+                          <button
+                            onClick={() => handleClaimPlan(p.purchaseId)}
+                            disabled={!isReady}
+                            className={`w-full py-2 rounded-xl text-xs font-semibold shadow ${isReady ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                          >
+                            {isReady ? '₹4900 विथड्रॉल वॉलेट में ट्रांसफर करें' : `${remainingDays} दिन बाद उपलब्ध होगा`}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {currentTab === 'spin' && (
+              <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 flex flex-col items-center space-y-4">
+                <h3 className="font-bold text-lg text-gray-800">लकी स्पिन व्हील (Lucky Spin)</h3>
+                <p className="text-xs text-gray-500">हर प्लान खरीदने या दोस्त को इनवाइट करने पर 1 फ्री स्पिन पाएं!</p>
+                
+                <div className="bg-pink-50 px-4 py-2 rounded-xl font-bold text-pink-600 text-sm">
+                  उपलब्ध स्पिन: {user.spinChances}
+                </div>
+
+                <div className={`w-48 h-48 rounded-full border-8 border-pink-500 flex items-center justify-center bg-gradient-to-tr from-pink-400 to-rose-500 text-white font-bold text-xl shadow-inner ${spinning ? 'animate-spin' : ''}`}>
+                  {spinning ? 'घूम रहा है...' : '🎯 SPIN'}
+                </div>
+
+                {spinResult !== null && (
+                  <div className="text-green-600 font-bold text-sm bg-green-50 px-4 py-2 rounded-xl">
+                    {spinResult > 0 ? `₹${spinResult} जीतकर विथड्रॉल वॉलेट में जोड़े गए!` : 'अगلی बार कोशिश करें!'}
+                  </div>
+                )}
+
                 <button
-                  onClick={() => handleBuyVip(1, 500)}
-                  disabled={user.vipLevel >= 1}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 1 ? 'bg-gray-100 text-gray-400' : 'bg-pink-600 text-white hover:bg-pink-700'}`}
+                  onClick={handleSpinWheel}
+                  disabled={spinning}
+                  className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl text-sm shadow"
                 >
-                  {user.vipLevel >= 1 ? 'Unlocked' : 'Buy VIP 1'}
+                  {spinning ? 'स्पिन हो रहा है...' : 'स्पिन घुमाएं'}
                 </button>
               </div>
+            )}
 
-              {/* VIP 2 */}
-              <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                <div>
-                  <h4 className="font-bold text-sm text-gray-800">VIP 2</h4>
-                  <p className="text-xs text-gray-500">Price: ₹1500 | Requires VIP 1</p>
+            {currentTab === 'invite' && (
+              <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 space-y-4">
+                <h3 className="font-bold text-lg text-gray-800">दोस्तों को इनवाइट करें</h3>
+                <p className="text-xs text-gray-500">अपना इनवाइट कोड शेयर करें। जब वे निवेश करेंगे, आपको रिवॉर्ड और फ्री स्पिन मिलेंगे!</p>
+
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <p className="text-xs text-gray-500 mb-1">आपका इनविटेशन कोड</p>
+                  <h2 className="text-2xl font-black text-pink-600 tracking-wider">{user.inviteCode}</h2>
                 </div>
+
                 <button
-                  onClick={() => handleBuyVip(2, 1500)}
-                  disabled={user.vipLevel >= 2 || user.vipLevel < 1}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 2 ? 'bg-gray-100 text-gray-400' : user.vipLevel < 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-pink-600 text-white hover:bg-pink-700'}`}
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://www.greatskincare7.ru/?invitation_code=${user.inviteCode}`);
+                    alert('इन्वाइट लिंक कॉपी हो गया!');
+                  }}
+                  className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl text-sm shadow"
                 >
-                  {user.vipLevel >= 2 ? 'Unlocked' : user.vipLevel < 1 ? 'Locked (Buy VIP 1 first)' : 'Buy VIP 2'}
+                  इनवाइट लिंक कॉपी करें
                 </button>
               </div>
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* PROFILE TAB */}
-        {currentTab === 'profile' && (
-          <div className="space-y-4">
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-3">
-              <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-bold text-lg">
-                {user.phone.slice(-2)}
-              </div>
-              <div>
-                <h4 className="font-bold text-sm text-gray-800">{user.phone}</h4>
-                <p className="text-xs text-pink-600 font-semibold">VIP Level {user.vipLevel} Member</p>
-              </div>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-              <h4 className="font-bold text-sm text-gray-800">Bank Details for Withdrawal</h4>
-              {user.bankLocked ? (
-                <div className="bg-green-50 p-3 rounded-xl border border-green-200 text-xs text-green-700 space-y-1">
-                  <p><strong>Name:</strong> {user.bankDetails.name}</p>
-                  <p><strong>Account No:</strong> {user.bankDetails.accountNo}</p>
-                  <p><strong>IFSC:</strong> {user.bankDetails.ifsc}</p>
-                  <p className="text-[10px] text-gray-500 mt-1">🔒 Locked Permanently</p>
+            {currentTab === 'vip' && (
+              <div className="space-y-4">
+                <div className="bg-gradient-to-r from-amber-500 to-yellow-500 p-4 rounded-2xl text-white shadow-md flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-yellow-100">वर्तमान स्तर</p>
+                    <h3 className="text-xl font-bold">VIP {user.vipLevel}</h3>
+                  </div>
+                  <span className="text-3xl">⭐</span>
                 </div>
-              ) : (
-                <form onSubmit={handleSaveBank} className="space-y-3">
+
+                <div className="space-y-3">
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-800">VIP 1</h4>
+                      <p className="text-xs text-gray-500">मूल्य: ₹500 | स्पेशल बेनिफिट्स</p>
+                    </div>
+                    <button
+                      onClick={() => handleBuyVip(1, 500)}
+                      disabled={user.vipLevel >= 1}
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 1 ? 'bg-gray-100 text-gray-400' : 'bg-pink-600 text-white hover:bg-pink-700'}`}
+                    >
+                      {user.vipLevel >= 1 ? 'अनलॉक है' : 'VIP 1 खरीदें'}
+                    </button>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-sm text-gray-800">VIP 2</h4>
+                      <p className="text-xs text-gray-500">मूल्य: ₹1500 | VIP 1 आवश्यक है</p>
+                    </div>
+                    <button
+                      onClick={() => handleBuyVip(2, 1500)}
+                      disabled={user.vipLevel >= 2 || user.vipLevel < 1}
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 2 ? 'bg-gray-100 text-gray-400' : user.vipLevel < 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-pink-600 text-white hover:bg-pink-700'}`}
+                    >
+                      {user.vipLevel >= 2 ? 'अनलॉक है' : user.vipLevel < 1 ? 'लॉक (पहले VIP 1 खरीदें)' : 'VIP 2 खरीदें'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentTab === 'profile' && (
+              <div className="space-y-4">
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-pink-100 rounded-full flex items-center justify-center text-pink-600 font-bold text-lg">
+                    {user.phone.slice(-2)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-sm text-gray-800">{user.phone}</h4>
+                    <p className="text-xs text-pink-600 font-semibold">VIP Level {user.vipLevel} मेंबर</p>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+                  <h4 className="font-bold text-sm text-gray-800">विथड्रॉल के लिए बैंक विवरण</h4>
+                  {user.bankLocked ? (
+                    <div className="bg-green-50 p-3 rounded-xl border border-green-200 text-xs text-green-700 space-y-1">
+                      <p><strong>नाम:</strong> {user.bankDetails.name}</p>
+                      <p><strong>अकाउंट नंबर:</strong> {user.bankDetails.accountNo}</p>
+                      <p><strong>IFSC:</strong> {user.bankDetails.ifsc}</p>
+                      <p className="text-[10px] text-gray-500 mt-1">🔒 हमेशा के लिए लॉक कर दिया गया है</p>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveBank} className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="अकाउंट धारक का नाम"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-xl text-xs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="बैंक अकाउंट नंबर"
+                        value={accNo}
+                        onChange={(e) => setAccNo(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-xl text-xs"
+                      />
+                      <input
+                        type="text"
+                        placeholder="IFSC कोड"
+                        value={ifsc}
+                        onChange={(e) => setIfsc(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-xl text-xs"
+                      />
+                      <button type="submit" className="w-full py-2 bg-pink-600 text-white rounded-xl text-xs font-semibold">
+                        बैंक विवरण सेव और लॉक करें (केवल एक बार)
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {currentTab === 'recharge' && (
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <h3 className="font-bold text-base text-gray-800">पैसे जोड़ें (रिचार्ज वॉलेट)</h3>
+                <p className="text-xs text-gray-500">यहाँ जोड़ा गया पैसा केवल प्लान खरीदने या VIP अपग्रेड करने के काम आएगा।</p>
+                <form onSubmit={handleRechargeSubmit} className="space-y-3">
                   <input
-                    type="text"
-                    placeholder="Account Holder Name"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-xl text-xs"
+                    type="number"
+                    placeholder="राशि दर्ज करें (जैसे 150, 500)"
+                    value={rechargeAmount}
+                    onChange={(e) => setRechargeAmount(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-xl text-sm"
                   />
-                  <input
-                    type="text"
-                    placeholder="Bank Account Number"
-                    value={accNo}
-                    onChange={(e) => setAccNo(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-xl text-xs"
-                  />
-                  <input
-                    type="text"
-                    placeholder="IFSC Code"
-                    value={ifsc}
-                    onChange={(e) => setIfsc(e.target.value)}
-                    className="w-full px-3 py-2 border rounded-xl text-xs"
-                  />
-                  <button type="submit" className="w-full py-2 bg-pink-600 text-white rounded-xl text-xs font-semibold">
-                    Save & Lock Bank Details (Once Only)
+                  <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
+                    पेमेंट करें (UPI)
                   </button>
                 </form>
-              )}
-            </div>
+              </div>
+            )}
+
+            {currentTab === 'withdraw' && (
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+                <h3 className="font-bold text-base text-gray-800">कमाई विथड्रॉल करें</h3>
+                <p className="text-xs text-gray-500">उपलब्ध विथड्रॉल बैलेंस: <span className="font-bold text-pink-600">₹{user.withdrawWallet.toFixed(2)}</span></p>
+                
+                <form onSubmit={handleWithdrawSubmit} className="space-y-3">
+                  <input
+                    type="number"
+                    placeholder="विथड्रॉल राशि दर्ज करें"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-xl text-sm"
+                  />
+                  <button type="submit" className="w-full py-3 bg-green-600 text-white rounded-xl text-sm font-semibold shadow">
+                    बैंक में भेजें
+                  </button>
+                </form>
+              </div>
+            )}
+
           </div>
-        )}
 
-        {/* RECHARGE TAB */}
-        {currentTab === 'recharge' && (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 className="font-bold text-base text-gray-800">Add Funds (Recharge Wallet)</h3>
-            <p className="text-xs text-gray-500">Funds added here can only be used to purchase investment plans or upgrade VIP levels.</p>
-            <form onSubmit={handleRechargeSubmit} className="space-y-3">
-              <input
-                type="number"
-                placeholder="Enter amount (e.g. 150, 500)"
-                value={rechargeAmount}
-                onChange={(e) => setRechargeAmount(e.target.value)}
-                className="w-full px-4 py-3 border rounded-xl text-sm"
-              />
-              <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
-                Proceed to Pay (UPI)
-              </button>
-            </form>
+          <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 shadow-lg">
+            <button onClick={() => setCurrentTab('home')} className={`flex flex-col items-center ${currentTab === 'home' ? 'text-pink-600' : 'text-gray-400'}`}>
+              <span className="text-lg">🏠</span>
+              <span className="text-[10px]">होम</span>
+            </button>
+            <button onClick={() => setCurrentTab('invest')} className={`flex flex-col items-center ${currentTab === 'invest' ? 'text-pink-600' : 'text-gray-400'}`}>
+              <span className="text-lg">💎</span>
+              <span className="text-[10px]">इन्वेस्ट</span>
+            </button>
+            <button onClick={() => setCurrentTab('myPlans')} className={`flex flex-col items-center ${currentTab === 'myPlans' ? 'text-pink-600' : 'text-gray-400'}`}>
+              <span className="text-lg">📊</span>
+              <span className="text-[10px]">मेरे प्लान</span>
+            </button>
+            <button onClick={() => setCurrentTab('spin')} className={`flex flex-col items-center ${currentTab === 'spin' ? 'text-pink-600' : 'text-gray-400'}`}>
+              <span className="text-lg">🎡</span>
+              <span className="text-[10px]">स्पिन</span>
+            </button>
+            <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center ${currentTab === 'profile' ? 'text-pink-600' : 'text-gray-400'}`}>
+              <span className="text-lg">👤</span>
+              <span className="text-[10px]">प्रोफाइल</span>
+            </button>
           </div>
-        )}
 
-        {/* WITHDRAW TAB */}
-        {currentTab === 'withdraw' && (
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-            <h3 className="font-bold text-base text-gray-800">Withdraw Earnings</h3>
-            <p className="text-xs text-gray-500">Available Withdrawal Balance: <span className="font-bold text-pink-600">₹{user.withdrawWallet.toFixed(2)}</span></p>
-            
-            <form onSubmit={handleWithdrawSubmit} className="space-y-3">
-              <input
-                type="number"
-                placeholder="Enter withdrawal amount"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="w-full px-4 py-3 border rounded-xl text-sm"
-              />
-              <button type="submit" className="w-full py-3 bg-green-600 text-white rounded-xl text-sm font-semibold shadow">
-                Withdraw to Bank
-              </button>
-            </form>
-          </div>
-        )}
+        </div>
+      );
+    }
 
-      </div>
-
-      {/* Bottom Navigation */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-2 shadow-lg">
-        <button onClick={() => setCurrentTab('home')} className={`flex flex-col items-center ${currentTab === 'home' ? 'text-pink-600' : 'text-gray-400'}`}>
-          <span className="text-lg">🏠</span>
-          <span className="text-[10px]">Home</span>
-        </button>
-        <button onClick={() => setCurrentTab('invest')} className={`flex flex-col items-center ${currentTab === 'invest' ? 'text-pink-600' : 'text-gray-400'}`}>
-          <span className="text-lg">💎</span>
-          <span className="text-[10px]">Invest</span>
-        </button>
-        <button onClick={() => setCurrentTab('myPlans')} className={`flex flex-col items-center ${currentTab === 'myPlans' ? 'text-pink-600' : 'text-gray-400'}`}>
-          <span className="text-lg">📊</span>
-          <span className="text-[10px]">My Plans</span>
-        </button>
-        <button onClick={() => setCurrentTab('spin')} className={`flex flex-col items-center ${currentTab === 'spin' ? 'text-pink-600' : 'text-gray-400'}`}>
-          <span className="text-lg">🎡</span>
-          <span className="text-[10px]">Spin</span>
-        </button>
-        <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center ${currentTab === 'profile' ? 'text-pink-600' : 'text-gray-400'}`}>
-          <span className="text-lg">👤</span>
-          <span className="text-[10px]">Profile</span>
-        </button>
-      </div>
-
-    </div>
-  );
-}
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
