@@ -37,7 +37,9 @@
       const [myPlans, setMyPlans] = React.useState([]);
       const [rechargeAmount, setRechargeAmount] = React.useState('');
       const [withdrawAmount, setWithdrawAmount] = React.useState('');
-      const [rechargePending, setRechargePending] = React.useState(false);
+      
+      // Recharge History & Pending State
+      const [rechargeHistory, setRechargeHistory] = React.useState([]);
 
       const [bankName, setBankName] = React.useState('');
       const [accNo, setAccNo] = React.useState('');
@@ -209,7 +211,7 @@
         alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
       };
 
-      // Secure UPI Payment Request (Balance won't increase automatically without confirmation)
+      // Recharge Submission - Adds to Pending History (Does NOT increase balance automatically)
       const handleRechargeSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(rechargeAmount);
@@ -218,13 +220,21 @@
           return;
         }
 
-        // UPI Intent link triggered in background without exposing UPI ID text
+        // Open UPI app securely without showing UPI ID
         const upiLink = `upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&am=${amt}&cu=INR`;
         window.location.href = upiLink;
 
-        setRechargePending(true);
-        alert(`रिचार्ज अनुरोध (₹${amt}) सबमिट हो गया है! जब तक आपके खाते में राशि प्राप्त नहीं होगी, तब तक वॉलेट बैलेंस अपडेट नहीं किया जाएगा।`);
+        // Add a new pending transaction record
+        const newTransaction = {
+          id: Date.now(),
+          amount: amt,
+          status: 'Pending',
+          date: new Date().toLocaleString()
+        };
+
+        setRechargeHistory([newTransaction, ...rechargeHistory]);
         setRechargeAmount('');
+        alert(`₹${amt} का भुगतान अनुरोध सबमिट हो गया है! स्टेटस 'Pending' दिखा रहा है। आपके खाते में राशि आने के बाद ही यह अप्रूव होगा।`);
       };
 
       const handleWithdrawSubmit = (e) => {
@@ -698,7 +708,7 @@
             {currentTab === 'recharge' && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-base text-gray-800">सिक्योर UPI रिचार्ज</h3>
-                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने पर अनुरोध सुरक्षित रूप से दर्ज किया जाएगा। भुगतान प्राप्त होने के बाद ही वॉलेट में बैलेंस जुड़ेगा।</p>
+                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने पर अनुरोध सुरक्षित रूप से सबमिट हो जाएगा।</p>
                 <form onSubmit={handleRechargeSubmit} className="space-y-3">
                   <input
                     type="number"
@@ -712,11 +722,27 @@
                   </button>
                 </form>
 
-                {rechargePending && (
-                  <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-700">
-                    ⏳ आपका रिचार्ज अनुरोध पेंडिंग (Pending) है। पेमेंट कन्फर्म होने के बाद वॉलेट अपडेट होगा।
-                  </div>
-                )}
+                {/* Recharge History & Pending Status */}
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <h4 className="font-bold text-xs text-gray-700 mb-2">रिचार्ज हिस्ट्री (Recharge History)</h4>
+                  {rechargeHistory.length === 0 ? (
+                    <p className="text-xs text-gray-400">कोई रिचार्ज हिस्ट्री नहीं है।</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {rechargeHistory.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 text-xs">
+                          <div>
+                            <span className="font-bold text-gray-800">₹{item.amount}</span>
+                            <p className="text-[10px] text-gray-400">{item.date}</p>
+                          </div>
+                          <span className="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-bold text-[10px]">
+                            Pending
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
