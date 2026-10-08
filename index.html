@@ -41,6 +41,8 @@
       const [generatedOtp, setGeneratedOtp] = React.useState('');
 
       const [rechargeAmount, setRechargeAmount] = React.useState('');
+      const [utrInput, setUtrInput] = React.useState('');
+      const [screenshotImage, setScreenshotImage] = React.useState('');
       const [withdrawAmount, setWithdrawAmount] = React.useState('');
 
       const [bankName, setBankName] = React.useState('');
@@ -49,6 +51,12 @@
 
       const [spinning, setSpinning] = React.useState(false);
       const [spinResult, setSpinResult] = React.useState(null);
+
+      // AI Chatbot States
+      const [aiMessages, setAiMessages] = React.useState([
+        { sender: 'ai', text: 'नमस्ते! GlowSkincare सपोर्ट में आपका स्वागत है। मैं आपकी क्या मदद कर सकता हूँ?' }
+      ]);
+      const [chatInput, setChatInput] = React.useState('');
 
       // यूज़र डेटा फेच करना
       const getAllUsers = () => JSON.parse(localStorage.getItem('glow_users') || '{}');
@@ -103,12 +111,13 @@
             return;
           }
 
-          // अगर यूज़र ने इनविटेशन कोड डाला है, तो उसकी वैधता (Validity) चेक करें
+          let referredByPhone = null;
           if (inviteInput.trim() !== '') {
             let isValidInvite = false;
             for (let ph in registeredUsers) {
               if (registeredUsers[ph].inviteCode === inviteInput.trim()) {
                 isValidInvite = true;
+                referredByPhone = ph; // किस यूज़र ने रेफर किया है उसका नंबर सेव करें
                 break;
               }
             }
@@ -122,6 +131,7 @@
             phone: phoneInput,
             password: passInput,
             inviteCode: generateInviteCode(),
+            referredBy: referredByPhone, // रेफरर रिकॉर्ड
             rechargeWallet: 0,
             withdrawWallet: 0,
             vipLevel: 0,
@@ -172,6 +182,7 @@
       const [, setForceRender] = React.useState(0);
       const triggerRefresh = () => setForceRender(prev => prev + 1);
 
+      // Plan Purchase & 10% Referral Commission System
       const handleBuyPlan = () => {
         const planPrice = 150;
         const currentCount = (user.myPlans || []).filter(p => p.id === 1).length;
@@ -203,11 +214,18 @@
         u.rechargeWallet -= planPrice;
         u.spinChances += 1;
         u.myPlans = [...(u.myPlans || []), newPlan];
+
+        // 10% Referral Commission Logic
+        if (u.referredBy && allUsers[u.referredBy]) {
+          const commission = planPrice * 0.10; // 10% of 150 = ₹15
+          allUsers[u.referredBy].withdrawWallet += commission;
+        }
+
         allUsers[currentUserPhone] = u;
         localStorage.setItem('glow_users', JSON.stringify(allUsers));
         triggerRefresh();
 
-        alert('प्लान सफलतापूर्वक खरीद लिया गया है!');
+        alert('प्लान सफलतापूर्वक खरीद लिया गया है! (रेफरर को 10% कमीशन भेज दिया गया है)');
       };
 
       const handleClaimPlan = (purchaseId) => {
@@ -233,11 +251,31 @@
         alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
       };
 
+      const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setScreenshotImage(reader.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
       const handleRechargeSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(rechargeAmount);
+        
         if (!amt || amt <= 0) {
           alert('कृपया सही राशि दर्ज करें');
+          return;
+        }
+        if (!utrInput || utrInput.trim().length < 6) {
+          alert('कृपया 12 अंकों की सही UTR / Transaction ID दर्ज करें');
+          return;
+        }
+        if (!screenshotImage) {
+          alert('कृपया भुगतान का स्क्रीनशॉट (फोटो) अपलोड करना अनिवार्य है!');
           return;
         }
 
@@ -249,6 +287,8 @@
           id: Date.now(),
           phone: currentUserPhone,
           amount: amt,
+          utr: utrInput.trim(),
+          screenshot: screenshotImage,
           date: new Date().toLocaleString(),
           status: 'Pending'
         };
@@ -256,7 +296,9 @@
         localStorage.setItem('glow_pending_recharges', JSON.stringify(pendingList));
 
         setRechargeAmount('');
-        alert(`रिचार्ज अनुरोध सफलतापूर्वक दर्ज हो गया है!\nनोट: भुगतान करने के बाद, रात 12 बजे तक आपके वॉलेट में राशि जोड़ी जाएगी।`);
+        setUtrInput('');
+        setScreenshotImage('');
+        alert(`रिचार्ज अनुरोध सफलतापूर्वक दर्ज हो गया है!\nनोट: रात 12 बजे तक आपके वॉलेट में राशि जोड़ी जाएगी।`);
       };
 
       const handleAdminApprove = (reqId) => {
@@ -273,7 +315,7 @@
         const updatedList = pendingList.filter(r => r.id !== reqId);
         localStorage.setItem('glow_pending_recharges', JSON.stringify(updatedList));
         triggerRefresh();
-        alert(`यूज़र ${req.phone} का ₹${req.amount} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
+        alert(`यूज़र ${req.phone} (UTR: ${req.utr}) का ₹${req.amount} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
       };
 
       const handleWithdrawSubmit = (e) => {
@@ -371,6 +413,35 @@
         }, 2000);
       };
 
+      // AI Chatbot Handler
+      const handleAiSend = (e) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const userMsg = chatInput.trim();
+        const newMsgs = [...aiMessages, { sender: 'user', text: userMsg }];
+        setAiMessages(newMsgs);
+        setChatInput('');
+
+        // स्मार्ट AI बॉट रिस्पॉन्स लॉजिक
+        setTimeout(() => {
+          let botReply = "क्षमा करें, मैं पूरी तरह समझ नहीं पाया। आप रिचार्ज, विथड्रॉल या प्लान के बारे में पूछ सकते हैं।";
+          const lower = userMsg.toLowerCase();
+
+          if (lower.includes('recharge') || lower.includes('रिचार्ज') || lower.includes('paisa') || lower.includes('पैसा')) {
+            botReply = "रिचार्ज करने के लिए 'रिचार्ज' टैब में जाएं, राशि और UTR भरकर स्क्रीनशॉट अपलोड करें। रात 12 बजे तक वॉलेट में पैसे जोड़ दिए जाएंगे।";
+          } else if (lower.includes('withdraw') || lower.includes('विथड्रॉल') || lower.includes('nikalna')) {
+            botReply = "आप अपनी कमाई हुई राशि 'विथड्रॉल करें' बटन से सीधे अपने बैंक खाते में भेज सकते हैं। बैंक डिटेल्स प्रोफाइल में सेव होनी चाहिए।";
+          } else if (lower.includes('plan') || lower.includes('इन्वेस्ट') || lower.includes('invest')) {
+            botReply = "₹150 का Starter Plan खरीदने पर आपको हर दिन ₹100 मिलेंगे (अवधि 49 दिन)। साथ ही आपके रेफरर को 10% कमीशन भी मिलेगा!";
+          } else if (lower.includes('hello') || lower.includes('hi') || lower.includes('नमस्ते')) {
+            botReply = "नमस्ते! GlowSkincare में आपका स्वागत है। आज मैं आपकी क्या सहायता कर सकता हूँ?";
+          }
+
+          setAiMessages([...newMsgs, { sender: 'ai', text: botReply }]);
+        }, 800);
+      };
+
       // --- ADMIN VIEW ---
       if (isAdminMode) {
         const pendingRecharges = getPendingRecharges();
@@ -379,14 +450,14 @@
             <div className="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-2xl">
               <div>
                 <h1 className="text-xl font-bold text-pink-400">🛡️ Admin Dashboard</h1>
-                <p className="text-xs text-gray-400">सभी पेंडिंग रिचार्ज अप्रूव करें</p>
+                <p className="text-xs text-gray-400">UTR और स्क्रीनशॉट मिलान करके अप्रूव करें</p>
               </div>
               <button onClick={() => setIsAdminMode(false)} className="bg-pink-600 px-3 py-1.5 rounded-xl text-xs font-semibold">
                 ऐप पर जाएं
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <h3 className="font-bold text-sm text-gray-300">पेंडिंग रिचार्ज अनुरोध ({pendingRecharges.length})</h3>
               {pendingRecharges.length === 0 ? (
                 <div className="text-center py-12 bg-gray-800/50 rounded-2xl border border-gray-700">
@@ -394,256 +465,38 @@
                 </div>
               ) : (
                 pendingRecharges.map((req) => (
-                  <div key={req.id} className="bg-gray-800 p-4 rounded-2xl border border-gray-700 flex justify-between items-center">
-                    <div>
-                      <p className="text-xs text-gray-400">मोबाइल: <span className="font-bold text-white">{req.phone}</span></p>
-                      <p className="text-base font-bold text-green-400 my-0.5">₹{req.amount}</p>
-                      <p className="text-[10px] text-gray-500">{req.date}</p>
+                  <div key={req.id} className="bg-gray-800 p-4 rounded-2xl border border-gray-700 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs text-gray-400">मोबाइल: <span className="font-bold text-white">{req.phone}</span></p>
+                        <p className="text-lg font-bold text-green-400 my-0.5">₹{req.amount}</p>
+                      </div>
+                      <span className="bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded text-[10px] font-bold">Pending</span>
                     </div>
-                    <button
-                      onClick={() => handleAdminApprove(req.id)}
-                      className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold shadow"
-                    >
-                      Approve
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
 
-            <button onClick={handleLogout} className="w-full mt-8 py-3 bg-red-600/20 text-red-400 border border-red-600/30 rounded-xl text-xs font-semibold">
-              लॉग आउट (Admin)
-            </button>
-          </div>
-        );
-      }
+                    <div className="bg-gray-900 p-2.5 rounded-xl border border-gray-700">
+                      <p className="text-[11px] text-gray-400">UTR / Transaction ID:</p>
+                      <p className="text-xs font-mono font-bold text-yellow-400 tracking-wider">{req.utr}</p>
+                    </div>
 
-      // --- LOGIN / REGISTER VIEW ---
-      if (!currentUserPhone || !user) {
-        return (
-          <div className="min-h-screen bg-pink-50 flex flex-col justify-center items-center p-4">
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-pink-600">✨ GlowSkincare ✨</h1>
-                <p className="text-gray-500 text-sm mt-1">
-                  {isRegistering ? 'नया अकाउंट रजिस्टर करें (OTP आवश्यक)' : 'अपने रजिस्टर्ड नंबर से लॉगिन करें'}
-                </p>
-              </div>
-
-              <div className="flex bg-pink-100 p-1 rounded-xl mb-6">
-                <button
-                  onClick={() => setIsRegistering(false)}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${!isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
-                >
-                  लॉगिन (Login)
-                </button>
-                <button
-                  onClick={() => setIsRegistering(true)}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition ${isRegistering ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-600'}`}
-                >
-                  रजिस्टर (Register)
-                </button>
-              </div>
-
-              <form onSubmit={handleAuth} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">मोबाइल नंबर</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="मोबाइल नंबर दर्ज करें"
-                      value={phoneInput}
-                      onChange={(e) => setPhoneInput(e.target.value)}
-                      className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-                    />
-                    {isRegistering && (
-                      <button
-                        type="button"
-                        onClick={handleSendOtp}
-                        className="px-3 bg-pink-600 text-white rounded-xl text-xs font-semibold shadow hover:bg-pink-700"
-                      >
-                        {otpSent ? 'दुबारा भेजें' : 'OTP भेजें'}
-                      </button>
+                    {req.screenshot && (
+                      <div className="bg-gray-900 p-2 rounded-xl border border-gray-700">
+                        <p className="text-[11px] text-gray-400 mb-1">पेमेंट स्क्रीनशॉट:</p>
+                        <a href={req.screenshot} target="_blank" rel="noopener noreferrer">
+                          <img src={req.screenshot} alt="Payment Screenshot" className="w-full h-32 object-cover rounded-lg border border-gray-700 hover:opacity-90 transition" />
+                        </a>
+                      </div>
                     )}
-                  </div>
-                </div>
 
-                {isRegistering && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">OTP दर्ज करें</label>
-                    <input
-                      type="text"
-                      placeholder="4 अंकों का OTP डालें"
-                      value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm tracking-widest font-bold"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">पासवर्ड</label>
-                  <input
-                    type="password"
-                    placeholder="पासवर्ड दर्ज करें"
-                    value={passInput}
-                    onChange={(e) => setPassInput(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-                  />
-                </div>
-
-                {isRegistering && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">इनविटेशन कोड (वैकल्पिक / Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="यदि हो तो इनविटेशन कोड डालें"
-                      value={inviteInput}
-                      onChange={(e) => setInviteInput(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-                    />
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white font-semibold rounded-xl shadow-lg transition duration-200 mt-2"
-                >
-                  {isRegistering ? 'अकाउंट रजिस्टर करें' : 'लॉगिन करें'}
-                </button>
-  t} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
-      };
-
-      const handleWithdrawSubmit = (e) => {
-        e.preventDefault();
-        const amt = parseFloat(withdrawAmount);
-
-        if (!user.bankLocked) {
-          alert('कृपया पैसे निकालने से पहले अपनी बैंक डिटेल्स सेव करें!');
-          return;
-        }
-
-        if (!amt || amt <= 0) {
-          alert('कृपया सही विथड्रॉल राशि दर्ज करें');
-          return;
-        }
-
-        if (amt > user.withdrawWallet) {
-          alert('विथड्रॉल वॉलेट में पर्याप्त बैलेंस नहीं है!');
-          return;
-        }
-
-        const allUsers = getAllUsers();
-        const u = allUsers[currentUserPhone];
-        u.withdrawWallet -= amt;
-        allUsers[currentUserPhone] = u;
-        localStorage.setItem('glow_users', JSON.stringify(allUsers));
-        setWithdrawAmount('');
-        triggerRefresh();
-        alert(`₹${amt} का विथड्रॉल अनुरोध सफलतापूर्वक दर्ज हो गया है!`);
-      };
-
-      const handleSaveBank = (e) => {
-        e.preventDefault();
-        if (!bankName || !accNo || !ifsc) {
-          alert('कृपया सभी बैंक विवरण भरें');
-          return;
-        }
-
-        const allUsers = getAllUsers();
-        const u = allUsers[currentUserPhone];
-        u.bankDetails = { name: bankName, accountNo: accNo, ifsc: ifsc };
-        u.bankLocked = true;
-        allUsers[currentUserPhone] = u;
-        localStorage.setItem('glow_users', JSON.stringify(allUsers));
-        triggerRefresh();
-        alert('बैंक विवरण सुरक्षित रूप से सेव और लॉक कर दिए गए हैं!');
-      };
-
-      const handleBuyVip = (level, price) => {
-        if (user.vipLevel !== level - 1) {
-          alert(`पहले VIP ${level - 1} खरीदना अनिवार्य है!`);
-          return;
-        }
-
-        if (user.rechargeWallet < price) {
-          alert('VIP अपग्रेड करने के लिए रिचार्ज वॉलेट में पर्याप्त बैलेंस नहीं है!');
-          setCurrentTab('recharge');
-          return;
-        }
-
-        const allUsers = getAllUsers();
-        const u = allUsers[currentUserPhone];
-        u.rechargeWallet -= price;
-        u.vipLevel = level;
-        allUsers[currentUserPhone] = u;
-        localStorage.setItem('glow_users', JSON.stringify(allUsers));
-        triggerRefresh();
-        alert(`बधाई हो! अब आप VIP ${level} के सदस्य बन गए हैं।`);
-      };
-
-      const handleSpinWheel = () => {
-        if (user.spinChances <= 0) {
-          alert('कोई स्पिन चांस नहीं बचा है!');
-          return;
-        }
-
-        setSpinning(true);
-        const allUsers = getAllUsers();
-        allUsers[currentUserPhone].spinChances -= 1;
-        localStorage.setItem('glow_users', JSON.stringify(allUsers));
-        triggerRefresh();
-
-        setTimeout(() => {
-          const rewards = [10, 20, 50, 100, 0, 200, 50];
-          const randomReward = rewards[Math.floor(Math.random() * rewards.length)];
-          setSpinResult(randomReward);
-          setSpinning(false);
-
-          if (randomReward > 0) {
-            const uAll = getAllUsers();
-            uAll[currentUserPhone].withdrawWallet += randomReward;
-            localStorage.setItem('glow_users', JSON.stringify(uAll));
-            triggerRefresh();
-          }
-        }, 2000);
-      };
-
-      // --- ADMIN VIEW ---
-      if (isAdminMode) {
-        const pendingRecharges = getPendingRecharges();
-        return (
-          <div className="min-h-screen bg-gray-900 text-white p-4 font-sans max-w-md mx-auto relative shadow-2xl">
-            <div className="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-2xl">
-              <div>
-                <h1 className="text-xl font-bold text-pink-400">🛡️ Admin Dashboard</h1>
-                <p className="text-xs text-gray-400">सभी पेंडिंग रिचार्ज अप्रूव करें</p>
-              </div>
-              <button onClick={() => setIsAdminMode(false)} className="bg-pink-600 px-3 py-1.5 rounded-xl text-xs font-semibold">
-                ऐप पर जाएं
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <h3 className="font-bold text-sm text-gray-300">पेंडिंग रिचार्ज अनुरोध ({pendingRecharges.length})</h3>
-              {pendingRecharges.length === 0 ? (
-                <div className="text-center py-12 bg-gray-800/50 rounded-2xl border border-gray-700">
-                  <p className="text-gray-400 text-sm">कोई पेंडिंग रिचार्ज नहीं है।</p>
-                </div>
-              ) : (
-                pendingRecharges.map((req) => (
-                  <div key={req.id} className="bg-gray-800 p-4 rounded-2xl border border-gray-700 flex justify-between items-center">
-                    <div>
-                      <p className="text-xs text-gray-400">मोबाइल: <span className="font-bold text-white">{req.phone}</span></p>
-                      <p className="text-base font-bold text-green-400 my-0.5">₹{req.amount}</p>
-                      <p className="text-[10px] text-gray-500">{req.date}</p>
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-[10px] text-gray-500">{req.date}</span>
+                      <button
+                        onClick={() => handleAdminApprove(req.id)}
+                        className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold shadow"
+                      >
+                        Approve (स्वीकृत करें)
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleAdminApprove(req.id)}
-                      className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold shadow"
-                    >
-                      Approve
-                    </button>
                   </div>
                 ))
               )}
@@ -798,7 +651,7 @@
                   </div>
                   <div className="pt-3 border-t border-white/20 flex justify-between items-center">
                     <div>
-                      <p className="text-xs text-pink-100">विथड्रॉल वॉलेट (कमाई)</p>
+                      <p className="text-xs text-pink-100">विथड्रॉल वॉलेट (कमाई + 10% रेफरल)</p>
                       <h3 className="text-xl font-bold">₹{user.withdrawWallet.toFixed(2)}</h3>
                     </div>
                     <button onClick={() => setCurrentTab('withdraw')} className="bg-white text-pink-600 px-3 py-1 rounded-lg text-xs font-semibold shadow">
@@ -820,9 +673,10 @@
                     <span className="text-xl mb-1">👥</span>
                     <span className="text-xs text-gray-700 font-medium">इनवाइट</span>
                   </button>
-                  <button onClick={() => setCurrentTab('vip')} className="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                    <span className="text-xl mb-1">⭐</span>
-                    <span className="text-xs text-gray-700 font-medium">VIP</span>
+                  <button onClick={() => setCurrentTab('aiChat')} className="bg-white p-3 rounded-xl shadow-sm border border-pink-200 flex flex-col items-center relative">
+                    <span className="absolute -top-1 -right-1 bg-pink-600 text-white text-[8px] px-1 rounded-full animate-pulse">AI</span>
+                    <span className="text-xl mb-1">🤖</span>
+                    <span className="text-xs text-pink-600 font-bold">AI सपोर्ट</span>
                   </button>
                 </div>
               </div>
@@ -917,6 +771,7 @@
             {currentTab === 'invite' && (
               <div className="bg-white rounded-2xl p-6 text-center shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-lg text-gray-800">दोस्तों को इनवाइट करें</h3>
+                <p className="text-xs text-gray-500">जब आपका दोस्त आपके कोड से जुड़कर कोई प्लान खरीदेगा, तो आपको उसका **10% कमीशन** मिलेगा!</p>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <p className="text-xs text-gray-500 mb-1">आपका इनविटेशन कोड</p>
                   <h2 className="text-2xl font-black text-pink-600 tracking-wider">{user.inviteCode}</h2>
@@ -930,6 +785,37 @@
                 >
                   इनवाइट लिंक कॉपी करें
                 </button>
+              </div>
+            )}
+
+            {currentTab === 'aiChat' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-pink-100 flex flex-col h-[460px] relative overflow-hidden">
+                <div className="bg-pink-600 text-white p-3 text-sm font-bold flex items-center gap-2">
+                  <span>🤖</span> AI कस्टमर सपोर्ट (GlowBot)
+                </div>
+                
+                <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-gray-50 text-xs">
+                  {aiMessages.map((msg, index) => (
+                    <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-pink-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none shadow-sm'}`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={handleAiSend} className="p-2 bg-white border-t flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="अपना सवाल यहाँ पूछें..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    className="flex-1 px-3 py-2 border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-pink-500"
+                  />
+                  <button type="submit" className="px-4 py-2 bg-pink-600 text-white rounded-xl text-xs font-semibold shadow">
+                    भेजें
+                  </button>
+                </form>
               </div>
             )}
 
@@ -1013,17 +899,53 @@
             {currentTab === 'recharge' && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-base text-gray-800">सिक्योर UPI रिचार्ज</h3>
-                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने के बाद, एडमिन सत्यापन के बाद (या रात 8 बजे के बाद) आपके वॉलेट में राशि जोड़ी जाएगी।</p>
+                <p className="text-xs text-gray-500">राशि, UTR आईडी और स्क्रीनशॉट भरना अनिवार्य है। रात 12 बजे तक आपके वॉलेट में राशि जोड़ी जाएगी।</p>
+                
                 <form onSubmit={handleRechargeSubmit} className="space-y-3">
-                  <input
-                    type="number"
-                    placeholder="राशि दर्ज करें (जैसे 150, 500)"
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl text-sm"
-                  />
-                  <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
-                    Pay via UPI (Secure Gateway)
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">राशि (रुपये) *</label>
+                    <input
+                      type="number"
+                      placeholder="राशि दर्ज करें (जैसे 150, 500)"
+                      value={rechargeAmount}
+                      onChange={(e) => setRechargeAmount(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border rounded-xl text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">UTR / Transaction ID *</label>
+                    <input
+                      type="text"
+                      placeholder="12 अंकों की UTR आईडी दर्ज करें"
+                      value={utrInput}
+                      onChange={(e) => setUtrInput(e.target.value)}
+                      required
+                      className="w-full px-4 py-3 border rounded-xl text-sm font-mono font-bold tracking-wider"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">पेमेंट का स्क्रीनशॉट (फोटो) *</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      required
+                      className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100"
+                    />
+                  </div>
+
+                  {screenshotImage && (
+                    <div className="text-center bg-gray-50 p-2 rounded-xl border border-gray-200">
+                      <p className="text-[10px] text-green-600 font-bold mb-1">✅ स्क्रीनशॉट अपलोड हो गया है</p>
+                      <img src={screenshotImage} alt="Preview" className="w-20 h-20 object-cover mx-auto rounded-lg border" />
+                    </div>
+                  )}
+
+                  <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow mt-2">
+                    Pay via UPI & Submit Request
                   </button>
                 </form>
               </div>
@@ -1064,9 +986,9 @@
               <span className="text-lg">📊</span>
               <span className="text-[10px]">मेरे प्लान</span>
             </button>
-            <button onClick={() => setCurrentTab('spin')} className={`flex flex-col items-center ${currentTab === 'spin' ? 'text-pink-600' : 'text-gray-400'}`}>
-              <span className="text-lg">🎡</span>
-              <span className="text-[10px]">स्पिन</span>
+            <button onClick={() => setCurrentTab('aiChat')} className={`flex flex-col items-center ${currentTab === 'aiChat' ? 'text-pink-600' : 'text-gray-400'}`}>
+              <span className="text-lg">🤖</span>
+              <span className="text-[10px]">सपोर्ट</span>
             </button>
             <button onClick={() => setCurrentTab('profile')} className={`flex flex-col items-center ${currentTab === 'profile' ? 'text-pink-600' : 'text-gray-400'}`}>
               <span className="text-lg">👤</span>
