@@ -17,7 +17,7 @@
 
   <script type="text/babel">
     function App() {
-      // ⚠️ आपकी गुप्त UPI ID (यह यूज़र को नहीं दिखेगी)
+      // ⚠️ आपकी गुप्त UPI ID
       const MY_UPI_ID = "gyanshukumar01@ptyes"; 
 
       const [currentTab, setCurrentTab] = React.useState('home');
@@ -36,11 +36,12 @@
 
       const [myPlans, setMyPlans] = React.useState([]);
       const [rechargeAmount, setRechargeAmount] = React.useState('');
-      const [withdrawAmount, setWithdrawAmount] = React.useState('');
       
-      // Recharge History & Pending State
-      const [rechargeHistory, setRechargeHistory] = React.useState([]);
+      // Dynamic One-Time Order & Pin States
+      const [activeOrder, setActiveOrder] = React.useState(null); // { amount, orderId, expectedPin }
+      const [inputPin, setInputPin] = React.useState('');
 
+      const [withdrawAmount, setWithdrawAmount] = React.useState('');
       const [bankName, setBankName] = React.useState('');
       const [accNo, setAccNo] = React.useState('');
       const [ifsc, setIfsc] = React.useState('');
@@ -52,7 +53,6 @@
         return Math.random().toString(36).substring(2, 8).toUpperCase();
       };
 
-      // सिर्फ रजिस्टर करते समय OTP भेजने के लिए
       const handleSendOtp = () => {
         if (!phoneInput || phoneInput.length < 10) {
           alert('कृपया सही 10 अंकों का मोबाइल नंबर दर्ज करें');
@@ -211,7 +211,7 @@
         alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
       };
 
-      // Recharge Submission - Adds to Pending History (Does NOT increase balance automatically)
+      // Step 1: Generate Unique Order & Open UPI App
       const handleRechargeSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(rechargeAmount);
@@ -220,21 +220,51 @@
           return;
         }
 
-        // Open UPI app securely without showing UPI ID
+        // हर बार एक नया यूनिक ऑर्डर आईडी और उस आर्डर के लिए एक अलग सीक्रेट पिन बनेगा
+        const randomOrderId = "GLOW-" + Math.floor(1000 + Math.random() * 9000);
+        const uniquePin = Math.floor(1000 + Math.random() * 9000).toString(); // इस पेमेंट के लिए वन-टाइम पिन
+
+        setActiveOrder({
+          amount: amt,
+          orderId: randomOrderId,
+          expectedPin: uniquePin
+        });
+
         const upiLink = `upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&am=${amt}&cu=INR`;
         window.location.href = upiLink;
 
-        // Add a new pending transaction record
-        const newTransaction = {
-          id: Date.now(),
-          amount: amt,
-          status: 'Pending',
-          date: new Date().toLocaleString()
-        };
-
-        setRechargeHistory([newTransaction, ...rechargeHistory]);
         setRechargeAmount('');
-        alert(`₹${amt} का भुगतान अनुरोध सबमिट हो गया है! स्टेटस 'Pending' दिखा रहा है। आपके खाते में राशि आने के बाद ही यह अप्रूव होगा।`);
+        alert(`ऑर्डर जनरेट हो गया (${randomOrderId})! पेमेंट करने के बाद, अपने एडमिन (यानी खुद से) से इस आर्डर का वन-टाइम अप्रूवल पिन मांगें।`);
+      };
+
+      // Step 2: Verify Unique One-Time PIN
+      const handleVerifyPinSubmit = (e) => {
+        e.preventDefault();
+        if (!activeOrder) return;
+
+        if (inputPin !== activeOrder.expectedPin) {
+          alert('गलत अप्रूवल पिन! यह पिन इस आर्डर के लिए मान्य नहीं है।');
+          return;
+        }
+
+        // बैलेंस अपडेट करें
+        setUser(prev => {
+          const updated = {
+            ...prev,
+            rechargeWallet: prev.rechargeWallet + activeOrder.amount
+          };
+          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
+          if (allUsers[prev.phone]) {
+            allUsers[prev.phone] = updated;
+            localStorage.setItem('glow_users', JSON.stringify(allUsers));
+          }
+          return updated;
+        });
+
+        alert(`सफलतापूर्वक भुगतान सत्यापित हो गया! ₹${activeOrder.amount} आपके रिचार्ज वॉलेट में जोड़ दिए गए हैं।`);
+        setActiveOrder(null); // आर्डर खत्म, अब यह पिन दोबारा इस्तेमाल नहीं हो सकता!
+        setInputPin('');
+        setCurrentTab('home');
       };
 
       const handleWithdrawSubmit = (e) => {
@@ -708,41 +738,48 @@
             {currentTab === 'recharge' && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-base text-gray-800">सिक्योर UPI रिचार्ज</h3>
-                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने पर अनुरोध सुरक्षित रूप से सबमिट हो जाएगा।</p>
-                <form onSubmit={handleRechargeSubmit} className="space-y-3">
-                  <input
-                    type="number"
-                    placeholder="राशि दर्ज करें (जैसे 150, 500)"
-                    value={rechargeAmount}
-                    onChange={(e) => setRechargeAmount(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl text-sm"
-                  />
-                  <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
-                    Pay via UPI (Secure Gateway)
-                  </button>
-                </form>
-
-                {/* Recharge History & Pending Status */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <h4 className="font-bold text-xs text-gray-700 mb-2">रिचार्ज हिस्ट्री (Recharge History)</h4>
-                  {rechargeHistory.length === 0 ? (
-                    <p className="text-xs text-gray-400">कोई रिचार्ज हिस्ट्री नहीं है।</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {rechargeHistory.map((item) => (
-                        <div key={item.id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 text-xs">
-                          <div>
-                            <span className="font-bold text-gray-800">₹{item.amount}</span>
-                            <p className="text-[10px] text-gray-400">{item.date}</p>
-                          </div>
-                          <span className="bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-bold text-[10px]">
-                            Pending
-                          </span>
-                        </div>
-                      ))}
+                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने के बाद, हर बार नया वन-टाइम पिन (PIN) दर्ज करना होगा जो केवल उसी पेमेंट के लिए वैध होगा।</p>
+                
+                {!activeOrder ? (
+                  <form onSubmit={handleRechargeSubmit} className="space-y-3">
+                    <input
+                      type="number"
+                      placeholder="राशि दर्ज करें (जैसे 150, 500)"
+                      value={rechargeAmount}
+                      onChange={(e) => setRechargeAmount(e.target.value)}
+                      className="w-full px-4 py-3 border rounded-xl text-sm"
+                    />
+                    <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
+                      Pay via UPI (Secure Gateway)
+                    </button>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyPinSubmit} className="space-y-3 bg-amber-50 p-4 rounded-xl border border-amber-200">
+                    <div className="text-xs font-bold text-amber-900">
+                      📦 आर्डर आईडी: {activeOrder.orderId} | राशि: ₹{activeOrder.amount}
                     </div>
-                  )}
-                </div>
+                    <p className="text-[11px] text-amber-800">
+                      (टेस्टिंग के लिए इस आर्डर का गुप्त पिन <span className="font-bold bg-amber-200 px-1 py-0.5 rounded text-red-600">{activeOrder.expectedPin}</span> है। असली ऐप में जब पेमेंट आए तब आप यूज़र को यह नया पिन देंगे):
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="इस आर्डर का वन-टाइम पिन दर्ज करें"
+                      value={inputPin}
+                      onChange={(e) => setInputPin(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-xl text-xs tracking-widest font-bold"
+                    />
+                    <button type="submit" className="w-full py-2 bg-green-600 text-white rounded-xl text-xs font-semibold shadow">
+                      पिन वेरिफाई करके बैलेंस जोड़ें
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setActiveOrder(null)} 
+                      className="w-full py-1 text-gray-500 text-[11px] underline mt-1"
+                    >
+                      रद्द करें
+                    </button>
+                  </form>
+                )}
               </div>
             )}
 
