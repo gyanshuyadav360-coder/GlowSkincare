@@ -19,10 +19,16 @@
     function App() {
       // ⚠️ आपकी गुप्त UPI ID
       const MY_UPI_ID = "gyanshukumar01@ptyes"; 
+      // 🔐 गुप्त एडमिन पासवर्ड
+      const ADMIN_SECRET_PASS = "admin786";
+
+      // Persistent Session: पेज रीफ्रेश होने पर भी लॉगिन बनाए रखना
+      const [currentUserPhone, setCurrentUserPhone] = React.useState(() => {
+        return localStorage.getItem('glow_current_session') || null;
+      });
 
       const [currentTab, setCurrentTab] = React.useState('home');
-      const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-      const [user, setUser] = React.useState(null);
+      const [isAdminMode, setIsAdminMode] = React.useState(false);
 
       const [phoneInput, setPhoneInput] = React.useState('');
       const [passInput, setPassInput] = React.useState('');
@@ -34,20 +40,21 @@
       const [otpInput, setOtpInput] = React.useState('');
       const [generatedOtp, setGeneratedOtp] = React.useState('');
 
-      const [myPlans, setMyPlans] = React.useState([]);
       const [rechargeAmount, setRechargeAmount] = React.useState('');
-      
-      // Dynamic One-Time Order & Pin States
-      const [activeOrder, setActiveOrder] = React.useState(null); // { amount, orderId, expectedPin }
-      const [inputPin, setInputPin] = React.useState('');
-
       const [withdrawAmount, setWithdrawAmount] = React.useState('');
+
       const [bankName, setBankName] = React.useState('');
       const [accNo, setAccNo] = React.useState('');
       const [ifsc, setIfsc] = React.useState('');
 
       const [spinning, setSpinning] = React.useState(false);
       const [spinResult, setSpinResult] = React.useState(null);
+
+      // यूज़र डेटा फेच करना
+      const getAllUsers = () => JSON.parse(localStorage.getItem('glow_users') || '{}');
+      const getPendingRecharges = () => JSON.parse(localStorage.getItem('glow_pending_recharges') || '[]');
+
+      const user = currentUserPhone ? getAllUsers()[currentUserPhone] : null;
 
       const generateInviteCode = () => {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -59,7 +66,7 @@
           return;
         }
 
-        const registeredUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
+        const registeredUsers = getAllUsers();
         if (registeredUsers[phoneInput]) {
           alert('यह मोबाइल नंबर पहले से रजिस्टर्ड है! कृपया सीधे लॉगिन करें।');
           setIsRegistering(false);
@@ -74,7 +81,13 @@
 
       const handleAuth = (e) => {
         e.preventDefault();
-        const registeredUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
+        const registeredUsers = getAllUsers();
+
+        // 👑 गुप्त एडमिन लॉगिन चेक
+        if (phoneInput === "admin" && passInput === ADMIN_SECRET_PASS) {
+          setIsAdminMode(true);
+          return;
+        }
 
         if (isRegistering) {
           if (!phoneInput || !passInput || !otpInput) {
@@ -85,13 +98,25 @@
             alert('गलत OTP! कृपया सही OTP दर्ज करें।');
             return;
           }
-          if (!inviteInput) {
-            alert('रजिस्टर करने के लिए इनविटेशन कोड आवश्यक है!');
-            return;
-          }
           if (registeredUsers[phoneInput]) {
             alert('यह नंबर पहले से रजिस्टर्ड है!');
             return;
+          }
+
+          // अगर यूज़र ने इनविटेशन कोड डाला है, तो उसकी वैधता (Validity) चेक करें
+          if (inviteInput.trim() !== '') {
+            let isValidInvite = false;
+            // चेक करें क्या यह किसी एक्ज़िस्टिंग यूज़र का इनवाइट कोड है
+            for (let ph in registeredUsers) {
+              if (registeredUsers[ph].inviteCode === inviteInput.trim()) {
+                isValidInvite = true;
+                break;
+              }
+            }
+            if (!isValidInvite) {
+              alert('अमान्य (Invalid) इनविटेशन कोड! कृपया सही कोड दर्ज करें या इसे खाली छोड़ दें।');
+              return;
+            }
           }
 
           const newUser = {
@@ -103,14 +128,15 @@
             vipLevel: 0,
             spinChances: 1,
             bankDetails: null,
-            bankLocked: false
+            bankLocked: false,
+            myPlans: []
           };
 
           registeredUsers[phoneInput] = newUser;
           localStorage.setItem('glow_users', JSON.stringify(registeredUsers));
-
-          setUser(newUser);
-          setIsLoggedIn(true);
+          
+          localStorage.setItem('glow_current_session', phoneInput);
+          setCurrentUserPhone(phoneInput);
           setCurrentTab('home');
           alert('सफलतापूर्वक रजिस्ट्रेशन हो गया!');
 
@@ -132,15 +158,24 @@
             return;
           }
 
-          setUser(existingUser);
-          setIsLoggedIn(true);
+          localStorage.setItem('glow_current_session', phoneInput);
+          setCurrentUserPhone(phoneInput);
           setCurrentTab('home');
         }
       };
 
+      const handleLogout = () => {
+        localStorage.removeItem('glow_current_session');
+        setCurrentUserPhone(null);
+        setIsAdminMode(false);
+      };
+
+      const [, setForceRender] = React.useState(0);
+      const triggerRefresh = () => setForceRender(prev => prev + 1);
+
       const handleBuyPlan = () => {
         const planPrice = 150;
-        const currentCount = myPlans.filter(p => p.id === 1).length;
+        const currentCount = (user.myPlans || []).filter(p => p.id === 1).length;
 
         if (currentCount >= 5) {
           alert('खरीद सीमा पूरी हो गई! अधिकतम 5 प्लान खरीद सकते हैं।');
@@ -153,20 +188,6 @@
           return;
         }
 
-        setUser(prev => {
-          const updated = {
-            ...prev,
-            rechargeWallet: prev.rechargeWallet - planPrice,
-            spinChances: prev.spinChances + 1
-          };
-          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-          if (allUsers[prev.phone]) {
-            allUsers[prev.phone] = updated;
-            localStorage.setItem('glow_users', JSON.stringify(allUsers));
-          }
-          return updated;
-        });
-
         const newPlan = {
           purchaseId: Date.now(),
           id: 1,
@@ -178,12 +199,20 @@
           claimed: false
         };
 
-        setMyPlans([...myPlans, newPlan]);
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.rechargeWallet -= planPrice;
+        u.spinChances += 1;
+        u.myPlans = [...(u.myPlans || []), newPlan];
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
+
         alert('प्लान सफलतापूर्वक खरीद लिया गया है!');
       };
 
       const handleClaimPlan = (purchaseId) => {
-        const plan = myPlans.find(p => p.purchaseId === purchaseId);
+        const plan = (user.myPlans || []).find(p => p.purchaseId === purchaseId);
         if (!plan || plan.claimed) return;
 
         const daysPassed = (new Date().getTime() - plan.purchaseDate) / (1000 * 60 * 60 * 24);
@@ -194,24 +223,17 @@
 
         const totalReturn = plan.dailyIncome * plan.durationDays;
 
-        setUser(prev => {
-          const updated = {
-            ...prev,
-            withdrawWallet: prev.withdrawWallet + totalReturn
-          };
-          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-          if (allUsers[prev.phone]) {
-            allUsers[prev.phone] = updated;
-            localStorage.setItem('glow_users', JSON.stringify(allUsers));
-          }
-          return updated;
-        });
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.withdrawWallet += totalReturn;
+        u.myPlans = u.myPlans.map(p => p.purchaseId === purchaseId ? { ...p, claimed: true } : p);
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
 
-        setMyPlans(myPlans.map(p => p.purchaseId === purchaseId ? { ...p, claimed: true } : p));
         alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
       };
 
-      // Step 1: Generate Unique Order & Open UPI App
       const handleRechargeSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(rechargeAmount);
@@ -220,51 +242,39 @@
           return;
         }
 
-        // हर बार एक नया यूनिक ऑर्डर आईडी और उस आर्डर के लिए एक अलग सीक्रेट पिन बनेगा
-        const randomOrderId = "GLOW-" + Math.floor(1000 + Math.random() * 9000);
-        const uniquePin = Math.floor(1000 + Math.random() * 9000).toString(); // इस पेमेंट के लिए वन-टाइम पिन
-
-        setActiveOrder({
-          amount: amt,
-          orderId: randomOrderId,
-          expectedPin: uniquePin
-        });
-
         const upiLink = `upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&am=${amt}&cu=INR`;
         window.location.href = upiLink;
 
+        const pendingList = getPendingRecharges();
+        const newReq = {
+          id: Date.now(),
+          phone: currentUserPhone,
+          amount: amt,
+          date: new Date().toLocaleString(),
+          status: 'Pending'
+        };
+        pendingList.push(newReq);
+        localStorage.setItem('glow_pending_recharges', JSON.stringify(pendingList));
+
         setRechargeAmount('');
-        alert(`ऑर्डर जनरेट हो गया (${randomOrderId})! पेमेंट करने के बाद, अपने एडमिन (यानी खुद से) से इस आर्डर का वन-टाइम अप्रूवल पिन मांगें।`);
+        alert(`रिचार्ज अनुरोध सफलतापूर्वक दर्ज हो गया है!\nनोट: भुगतान करने के बाद, एडमिन सत्यापन के बाद (या रात 8 बजे के बाद) आपके वॉलेट में राशि जोड़ी जाएगी।`);
       };
 
-      // Step 2: Verify Unique One-Time PIN
-      const handleVerifyPinSubmit = (e) => {
-        e.preventDefault();
-        if (!activeOrder) return;
+      const handleAdminApprove = (reqId) => {
+        const pendingList = getPendingRecharges();
+        const req = pendingList.find(r => r.id === reqId);
+        if (!req) return;
 
-        if (inputPin !== activeOrder.expectedPin) {
-          alert('गलत अप्रूवल पिन! यह पिन इस आर्डर के लिए मान्य नहीं है।');
-          return;
+        const allUsers = getAllUsers();
+        if (allUsers[req.phone]) {
+          allUsers[req.phone].rechargeWallet += req.amount;
+          localStorage.setItem('glow_users', JSON.stringify(allUsers));
         }
 
-        // बैलेंस अपडेट करें
-        setUser(prev => {
-          const updated = {
-            ...prev,
-            rechargeWallet: prev.rechargeWallet + activeOrder.amount
-          };
-          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-          if (allUsers[prev.phone]) {
-            allUsers[prev.phone] = updated;
-            localStorage.setItem('glow_users', JSON.stringify(allUsers));
-          }
-          return updated;
-        });
-
-        alert(`सफलतापूर्वक भुगतान सत्यापित हो गया! ₹${activeOrder.amount} आपके रिचार्ज वॉलेट में जोड़ दिए गए हैं।`);
-        setActiveOrder(null); // आर्डर खत्म, अब यह पिन दोबारा इस्तेमाल नहीं हो सकता!
-        setInputPin('');
-        setCurrentTab('home');
+        const updatedList = pendingList.filter(r => r.id !== reqId);
+        localStorage.setItem('glow_pending_recharges', JSON.stringify(updatedList));
+        triggerRefresh();
+        alert(`यूज़र ${req.phone} का ₹${req.amount} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
       };
 
       const handleWithdrawSubmit = (e) => {
@@ -286,20 +296,14 @@
           return;
         }
 
-        setUser(prev => {
-          const updated = {
-            ...prev,
-            withdrawWallet: prev.withdrawWallet - amt
-          };
-          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-          if (allUsers[prev.phone]) {
-            allUsers[prev.phone] = updated;
-            localStorage.setItem('glow_users', JSON.stringify(allUsers));
-          }
-          return updated;
-        });
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.withdrawWallet -= amt;
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
         setWithdrawAmount('');
-        alert(`₹${amt} का विथड्रॉल अनुरोध सफलताપूर्वक दर्ज हो गया है!`);
+        triggerRefresh();
+        alert(`₹${amt} का विथड्रॉल अनुरोध सफलतापूर्वक दर्ज हो गया है!`);
       };
 
       const handleSaveBank = (e) => {
@@ -309,19 +313,13 @@
           return;
         }
 
-        setUser(prev => {
-          const updated = {
-            ...prev,
-            bankDetails: { name: bankName, accountNo: accNo, ifsc: ifsc },
-            bankLocked: true
-          };
-          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-          if (allUsers[prev.phone]) {
-            allUsers[prev.phone] = updated;
-            localStorage.setItem('glow_users', JSON.stringify(allUsers));
-          }
-          return updated;
-        });
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.bankDetails = { name: bankName, accountNo: accNo, ifsc: ifsc };
+        u.bankLocked = true;
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
         alert('बैंक विवरण सुरक्षित रूप से सेव और लॉक कर दिए गए हैं!');
       };
 
@@ -337,19 +335,13 @@
           return;
         }
 
-        setUser(prev => {
-          const updated = {
-            ...prev,
-            rechargeWallet: prev.rechargeWallet - price,
-            vipLevel: level
-          };
-          const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-          if (allUsers[prev.phone]) {
-            allUsers[prev.phone] = updated;
-            localStorage.setItem('glow_users', JSON.stringify(allUsers));
-          }
-          return updated;
-        });
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.rechargeWallet -= price;
+        u.vipLevel = level;
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
         alert(`बधाई हो! अब आप VIP ${level} के सदस्य बन गए हैं।`);
       };
 
@@ -360,7 +352,10 @@
         }
 
         setSpinning(true);
-        setUser(prev => ({ ...prev, spinChances: prev.spinChances - 1 }));
+        const allUsers = getAllUsers();
+        allUsers[currentUserPhone].spinChances -= 1;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
 
         setTimeout(() => {
           const rewards = [10, 20, 50, 100, 0, 200, 50];
@@ -369,23 +364,63 @@
           setSpinning(false);
 
           if (randomReward > 0) {
-            setUser(prev => {
-              const updated = {
-                ...prev,
-                withdrawWallet: prev.withdrawWallet + randomReward
-              };
-              const allUsers = JSON.parse(localStorage.getItem('glow_users') || '{}');
-              if (allUsers[prev.phone]) {
-                allUsers[prev.phone] = updated;
-                localStorage.setItem('glow_users', JSON.stringify(allUsers));
-              }
-              return updated;
-            });
+            const uAll = getAllUsers();
+            uAll[currentUserPhone].withdrawWallet += randomReward;
+            localStorage.setItem('glow_users', JSON.stringify(uAll));
+            triggerRefresh();
           }
         }, 2000);
       };
 
-      if (!isLoggedIn) {
+      // --- ADMIN VIEW ---
+      if (isAdminMode) {
+        const pendingRecharges = getPendingRecharges();
+        return (
+          <div className="min-h-screen bg-gray-900 text-white p-4 font-sans max-w-md mx-auto relative shadow-2xl">
+            <div className="flex justify-between items-center mb-6 bg-gray-800 p-4 rounded-2xl">
+              <div>
+                <h1 className="text-xl font-bold text-pink-400">🛡️ Admin Dashboard</h1>
+                <p className="text-xs text-gray-400">सभी पेंडिंग रिचार्ज अप्रूव करें</p>
+              </div>
+              <button onClick={() => setIsAdminMode(false)} className="bg-pink-600 px-3 py-1.5 rounded-xl text-xs font-semibold">
+                ऐप पर जाएं
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-bold text-sm text-gray-300">पेंडिंग रिचार्ज अनुरोध ({pendingRecharges.length})</h3>
+              {pendingRecharges.length === 0 ? (
+                <div className="text-center py-12 bg-gray-800/50 rounded-2xl border border-gray-700">
+                  <p className="text-gray-400 text-sm">कोई पेंडिंग रिचार्ज नहीं है।</p>
+                </div>
+              ) : (
+                pendingRecharges.map((req) => (
+                  <div key={req.id} className="bg-gray-800 p-4 rounded-2xl border border-gray-700 flex justify-between items-center">
+                    <div>
+                      <p className="text-xs text-gray-400">मोबाइल: <span className="font-bold text-white">{req.phone}</span></p>
+                      <p className="text-base font-bold text-green-400 my-0.5">₹{req.amount}</p>
+                      <p className="text-[10px] text-gray-500">{req.date}</p>
+                    </div>
+                    <button
+                      onClick={() => handleAdminApprove(req.id)}
+                      className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-xl text-xs font-bold shadow"
+                    >
+                      Approve
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button onClick={handleLogout} className="w-full mt-8 py-3 bg-red-600/20 text-red-400 border border-red-600/30 rounded-xl text-xs font-semibold">
+              लॉग आउट (Admin)
+            </button>
+          </div>
+        );
+      }
+
+      // --- LOGIN / REGISTER VIEW ---
+      if (!currentUserPhone || !user) {
         return (
           <div className="min-h-screen bg-pink-50 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border border-pink-100">
@@ -436,7 +471,7 @@
 
                 {isRegistering && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">OTP दर्ज करें (रजिस्ट्रेशन के लिए)</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">OTP दर्ज करें</label>
                     <input
                       type="text"
                       placeholder="4 अंकों का OTP डालें"
@@ -460,10 +495,10 @@
 
                 {isRegistering && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">इनविटेशन कोड (आवश्यक)</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">इनविटेशन कोड (वैकल्पिक / Optional)</label>
                     <input
                       type="text"
-                      placeholder="इनविटेशन कोड दर्ज करें"
+                      placeholder="यदि हो तो इनविटेशन कोड डालें"
                       value={inviteInput}
                       onChange={(e) => setInviteInput(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
@@ -483,6 +518,9 @@
         );
       }
 
+      // --- USER APP DASHBOARD ---
+      const myPlans = user.myPlans || [];
+
       return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans max-w-md mx-auto relative shadow-2xl overflow-hidden border-x border-gray-200">
           
@@ -499,7 +537,7 @@
                 रिचार्ज
               </button>
               <button 
-                onClick={() => { setIsLoggedIn(false); setUser(null); }}
+                onClick={handleLogout}
                 className="bg-pink-700 text-white px-2 py-1 rounded-lg text-xs"
               >
                 लॉग आउट
@@ -738,48 +776,19 @@
             {currentTab === 'recharge' && (
               <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
                 <h3 className="font-bold text-base text-gray-800">सिक्योर UPI रिचार्ज</h3>
-                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने के बाद, हर बार नया वन-टाइम पिन (PIN) दर्ज करना होगा जो केवल उसी पेमेंट के लिए वैध होगा।</p>
-                
-                {!activeOrder ? (
-                  <form onSubmit={handleRechargeSubmit} className="space-y-3">
-                    <input
-                      type="number"
-                      placeholder="राशि दर्ज करें (जैसे 150, 500)"
-                      value={rechargeAmount}
-                      onChange={(e) => setRechargeAmount(e.target.value)}
-                      className="w-full px-4 py-3 border rounded-xl text-sm"
-                    />
-                    <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
-                      Pay via UPI (Secure Gateway)
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={handleVerifyPinSubmit} className="space-y-3 bg-amber-50 p-4 rounded-xl border border-amber-200">
-                    <div className="text-xs font-bold text-amber-900">
-                      📦 आर्डर आईडी: {activeOrder.orderId} | राशि: ₹{activeOrder.amount}
-                    </div>
-                    <p className="text-[11px] text-amber-800">
-                      (टेस्टिंग के लिए इस आर्डर का गुप्त पिन <span className="font-bold bg-amber-200 px-1 py-0.5 rounded text-red-600">{activeOrder.expectedPin}</span> है। असली ऐप में जब पेमेंट आए तब आप यूज़र को यह नया पिन देंगे):
-                    </p>
-                    <input
-                      type="text"
-                      placeholder="इस आर्डर का वन-टाइम पिन दर्ज करें"
-                      value={inputPin}
-                      onChange={(e) => setInputPin(e.target.value)}
-                      className="w-full px-3 py-2 border rounded-xl text-xs tracking-widest font-bold"
-                    />
-                    <button type="submit" className="w-full py-2 bg-green-600 text-white rounded-xl text-xs font-semibold shadow">
-                      पिन वेरिफाई करके बैलेंस जोड़ें
-                    </button>
-                    <button 
-                      type="button" 
-                      onClick={() => setActiveOrder(null)} 
-                      className="w-full py-1 text-gray-500 text-[11px] underline mt-1"
-                    >
-                      रद्द करें
-                    </button>
-                  </form>
-                )}
+                <p className="text-xs text-gray-500">राशि दर्ज करके पेमेंट करने के बाद, एडमिन सत्यापन के बाद (या रात 8 बजे के बाद) आपके वॉलेट में राशि जोड़ी जाएगी।</p>
+                <form onSubmit={handleRechargeSubmit} className="space-y-3">
+                  <input
+                    type="number"
+                    placeholder="राशि दर्ज करें (जैसे 150, 500)"
+                    value={rechargeAmount}
+                    onChange={(e) => setRechargeAmount(e.target.value)}
+                    className="w-full px-4 py-3 border rounded-xl text-sm"
+                  />
+                  <button type="submit" className="w-full py-3 bg-pink-600 text-white rounded-xl text-sm font-semibold shadow">
+                    Pay via UPI (Secure Gateway)
+                  </button>
+                </form>
               </div>
             )}
 
