@@ -4,524 +4,344 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GlowSkincare</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background-color: #0b0f19; color: #f3f4f6; display: flex; justify-content: center; min-height: 100vh; }
+    .container { width: 100%; max-width: 420px; background-color: #111827; min-height: 100vh; display: flex; flex-direction: column; position: relative; border: 1px solid #1f2937; }
+    .header { background: linear-gradient(180deg, #064e3b, #111827); padding: 16px; border-bottom: 1px solid #1f2937; }
+    .card { background: #1f2937; padding: 14px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #374151; }
+    .input-field { width: 100%; padding: 10px; background: #0b0f19; border: 1px solid #374151; border-radius: 8px; color: #fff; margin-bottom: 10px; font-size: 13px; }
+    .btn { width: 100%; padding: 11px; background: #059669; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
+    .btn-red { background: #dc2626; }
+    .btn-gray { background: #374151; }
+    .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 420px; background: #111827; border-top: 1px solid #1f2937; display: flex; justify-content: space-around; padding: 10px 0; }
+    .nav-btn { background: none; border: none; color: #9ca3af; font-size: 11px; cursor: pointer; }
+    .nav-btn.active { color: #34d399; font-weight: bold; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; margin-bottom: 12px; }
+  </style>
 </head>
-<body class="bg-gray-950 flex justify-center items-center min-h-screen text-gray-100 font-sans">
-  <div id="app" class="w-full max-w-md bg-gray-900 shadow-2xl min-h-screen relative overflow-hidden border border-gray-800 flex flex-col justify-between"></div>
+<body>
+  <div class="container" id="app">
+    <!-- डिफ़ॉल्ट रूप से यह स्क्रीन तुरंत लोड होगी (नो ब्लैक स्क्रीन) -->
+    <div style="padding: 24px; margin-top: auto; margin-bottom: auto;">
+      <h2 style="text-align: center; color: #34d399; margin-bottom: 20px;">✨ GlowSkincare ✨</h2>
+      <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+        <button id="tabLog" class="btn" style="flex:1;" onclick="setMode(false)">लॉगिन</button>
+        <button id="tabReg" class="btn btn-gray" style="flex:1;" onclick="setMode(true)">रजिस्टर</button>
+      </div>
+      <form onsubmit="handleAuth(event)">
+        <input type="text" id="phone" placeholder="मोबाइल नंबर" required class="input-field">
+        <div id="regExtra" style="display: none;">
+          <input type="text" id="uname" placeholder="यूजरनेम" class="input-field">
+          <input type="password" id="wPass" placeholder="विथड्रॉल पासवर्ड (अलग)" class="input-field">
+        </div>
+        <input type="password" id="lPass" placeholder="लॉगिन पासवर्ड" required class="input-field">
+        <button type="submit" class="btn" id="submitBtn">लॉगिन करें</button>
+      </form>
+    </div>
+  </div>
 
   <script>
     const ADMIN_PASS = "admin786";
-
-    function getStorage(key, defaultVal) {
-      try {
-        const item = localStorage.getItem(key);
-        return item ? JSON.parse(item) : defaultVal;
-      } catch (e) {
-        return defaultVal;
-      }
-    }
-    function setStorage(key, val) {
-      try {
-        localStorage.setItem(key, JSON.stringify(val));
-      } catch (e) {}
-    }
-
+    let isRegister = false;
     let currentSession = localStorage.getItem('glow_session') || null;
     let currentTab = 'home';
     let isAdmin = false;
-    let isReg = false;
 
-    function render() {
-      const app = document.getElementById('app');
-      if (!app) return;
-      app.innerHTML = '';
+    function getStorage(k, def) {
+      try { return JSON.parse(localStorage.getItem(k)) || def; } catch(e) { return def; }
+    }
+    function setStorage(k, v) {
+      localStorage.setItem(k, JSON.stringify(v));
+    }
 
-      if (isAdmin) {
-        app.innerHTML = renderAdmin();
-        return;
-      }
+    function setMode(reg) {
+      isRegister = reg;
+      document.getElementById('regExtra').style.display = reg ? 'block' : 'none';
+      document.getElementById('submitBtn').innerText = reg ? 'अकाउंट बनाएं' : 'लॉगिन करें';
+      document.getElementById('tabLog').className = reg ? 'btn btn-gray' : 'btn';
+      document.getElementById('tabReg').className = reg ? 'btn' : 'btn btn-gray';
+    }
 
-      if (!currentSession) {
-        app.innerHTML = renderAuth();
+    function handleAuth(e) {
+      e.preventDefault();
+      const p = document.getElementById('phone').value.trim();
+      const pass = document.getElementById('lPass').value.trim();
+
+      if (p === "admin" && pass === ADMIN_PASS) {
+        isAdmin = true;
+        renderMain();
         return;
       }
 
       const users = getStorage('glow_users', {});
-      const user = users[currentSession];
-      if (!user) {
+      if (isRegister) {
+        const u = document.getElementById('uname').value.trim();
+        const wp = document.getElementById('wPass').value.trim();
+        if (users[p]) return alert('नंबर पहले से रजिस्टर्ड है!');
+        users[p] = {
+          phone: p, username: u || p, loginPass: pass, withdrawPass: wp,
+          rechargeWallet: 0, withdrawWallet: 0, productIncome: 0,
+          spinChances: 1, myPlans: []
+        };
+        setStorage('glow_users', users);
+        currentSession = p;
+        localStorage.setItem('glow_session', p);
+        renderMain();
+      } else {
+        if (!users[p] || users[p].loginPass !== pass) return alert('गलत नंबर या पासवर्ड!');
+        currentSession = p;
+        localStorage.setItem('glow_session', p);
+        renderMain();
+      }
+    }
+
+    function renderMain() {
+      const app = document.getElementById('app');
+      if (isAdmin) {
+        renderAdminView();
+        return;
+      }
+
+      const users = getStorage('glow_users', {});
+      const u = users[currentSession];
+      if (!u) {
         currentSession = null;
         localStorage.removeItem('glow_session');
-        app.innerHTML = renderAuth();
+        location.reload();
         return;
+      }
+
+      let content = '';
+      if (currentTab === 'home') {
+        content = `
+          <div class="header">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div><b>${u.username}</b><p style="font-size:11px; color:#34d399;">ID: ${u.phone}</p></div>
+              <button onclick="logout()" class="btn btn-red" style="width:auto; padding:5px 10px; font-size:11px;">लॉग आउट</button>
+            </div>
+            <div class="card grid-3" style="margin-top:12px;">
+              <div><p style="font-size:10px; color:#9ca3af;">Income</p><b>₹${u.productIncome}</b></div>
+              <div><p style="font-size:10px; color:#9ca3af;">Recharge</p><b>₹${u.rechargeWallet}</b></div>
+              <div><p style="font-size:10px; color:#9ca3af;">Withdraw</p><b>₹${u.withdrawWallet}</b></div>
+            </div>
+          </div>
+          <div style="padding:14px;">
+            <div class="grid-4">
+              <button onclick="currentTab='recharge';renderMain()" class="card" style="padding:10px;">💳<br><span style="font-size:10px;">Recharge</span></button>
+              <button onclick="currentTab='withdraw';renderMain()" class="card" style="padding:10px;">🏦<br><span style="font-size:10px;">Withdraw</span></button>
+              <button onclick="currentTab='spin';renderMain()" class="card" style="padding:10px;">🎯<br><span style="font-size:10px;">Spin</span></button>
+              <button onclick="currentTab='invest';renderMain()" class="card" style="padding:10px;">💎<br><span style="font-size:10px;">Invest</span></button>
+            </div>
+          </div>
+        `;
+      } else if (currentTab === 'invest') {
+        content = `
+          <div style="padding:16px;">
+            <h3>इन्वेस्टमेंट प्लान</h3>
+            <div class="card" style="margin-top:12px;">
+              <h4 style="color:#34d399;">Starter Plan</h4>
+              <p style="font-size:12px; margin:6px 0;">कीमत: ₹150 | दैनिक आय: ₹100 | अवधि: 49 दिन</p>
+              <button onclick="buyPlan()" class="btn">₹150 में खरीदें</button>
+            </div>
+          </div>
+        `;
+      } else if (currentTab === 'recharge') {
+        content = `
+          <div style="padding:16px;">
+            <h3>रिचार्ज करें</h3>
+            <div class="card" style="text-align:center; margin-top:10px;">
+              <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करके पेमेंट करें:</p>
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px;">
+            </div>
+            <form onsubmit="handleRecSubmit(event)">
+              <input type="number" id="ramt" min="150" placeholder="राशि (₹)" required class="input-field">
+              <input type="text" id="rname" placeholder="खाता धारक का नाम" required class="input-field">
+              <input type="text" id="racc" placeholder="बैंक खाता संख्या" required class="input-field">
+              <input type="text" id="rifsc" placeholder="IFSC कोड" required class="input-field">
+              <input type="text" id="rutr" placeholder="12 अंकों का UTR नंबर" required class="input-field">
+              <label style="font-size:11px; color:#9ca3af;">स्क्रीनशॉट चुनें:</label>
+              <input type="file" id="rfile" accept="image/*" required class="input-field">
+              <button type="submit" class="btn">सबमिट करें</button>
+            </form>
+          </div>
+        `;
+      } else if (currentTab === 'withdraw') {
+        content = `
+          <div style="padding:16px;">
+            <h3>विथड्रॉल करें</h3>
+            <p style="font-size:12px; color:#9ca3af; margin:8px 0;">बैलेंस: ₹${u.withdrawWallet}</p>
+            <form onsubmit="handleWithSubmit(event)">
+              <input type="number" id="wamt" min="200" placeholder="राशि (न्यूनतम ₹200)" required class="input-field">
+              <input type="password" id="wpass" placeholder="विथड्रॉल पासवर्ड" required class="input-field">
+              <button type="submit" class="btn">विथड्रॉ करें</button>
+            </form>
+          </div>
+        `;
+      } else if (currentTab === 'spin') {
+        content = `
+          <div style="padding:16px; text-align:center;">
+            <h3>🎡 Lucky Spin</h3>
+            <p style="font-size:12px; margin:10px 0;">बचे चांस: ${u.spinChances}</p>
+            <button onclick="doSpin()" class="btn">स्पिन घुमाएं</button>
+          </div>
+        `;
       }
 
       app.innerHTML = `
-        <div class="pb-20 overflow-y-auto flex-1">
-          ${renderTabContent(currentTab, user)}
-        </div>
-        <div class="absolute bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800 flex justify-around py-3 z-20">
-          <button onclick="switchTab('home')" class="flex flex-col items-center ${currentTab==='home'?'text-emerald-400':'text-gray-400'} text-[11px]">🏠<span>Home</span></button>
-          <button onclick="switchTab('invest')" class="flex flex-col items-center ${currentTab==='invest'?'text-emerald-400':'text-gray-400'} text-[11px]">💎<span>Invest</span></button>
-          <button onclick="switchTab('profile')" class="flex flex-col items-center ${currentTab==='profile'?'text-emerald-400':'text-gray-400'} text-[11px]">👤<span>Account</span></button>
+        <div style="padding-bottom:60px;">${content}</div>
+        <div class="bottom-nav">
+          <button class="nav-btn ${currentTab==='home'?'active':''}" onclick="currentTab='home';renderMain()">🏠<br>Home</button>
+          <button class="nav-btn ${currentTab==='invest'?'active':''}" onclick="currentTab='invest';renderMain()">💎<br>Invest</button>
+          <button class="nav-btn ${currentTab==='recharge'?'active':''}" onclick="currentTab='recharge';renderMain()">💳<br>Recharge</button>
         </div>
       `;
-    }
-
-    function switchTab(tab) {
-      currentTab = tab;
-      render();
-    }
-
-    function setAuthMode(regStatus) {
-      isReg = regStatus;
-      render();
-    }
-
-    function renderAuth() {
-      return `
-        <div class="min-h-screen flex flex-col justify-center items-center p-6">
-          <div class="w-full bg-gray-900 rounded-3xl p-6 border border-gray-800 shadow-xl">
-            <h1 class="text-2xl font-black text-emerald-400 text-center mb-6">✨ GlowSkincare ✨</h1>
-            <div class="flex bg-gray-950 p-1 rounded-2xl mb-6 border border-gray-800">
-              <button onclick="setAuthMode(false)" class="flex-1 py-2 text-xs font-bold rounded-xl ${!isReg?'bg-emerald-600 text-white':'text-gray-400'}">लॉगिन</button>
-              <button onclick="setAuthMode(true)" class="flex-1 py-2 text-xs font-bold rounded-xl ${isReg?'bg-emerald-600 text-white':'text-gray-400'}">रजिस्टर</button>
-            </div>
-            <form onsubmit="handleAuthSubmit(event)" class="space-y-3">
-              <input type="text" id="phone" placeholder="मोबाइल नंबर" required class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-              ${isReg ? `
-                <input type="text" id="username" placeholder="यूजरनेम" required class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="password" id="withdrawPass" placeholder="विथड्रॉल पासवर्ड (अलग)" required class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="text" id="inviteCode" placeholder="इनविटेशन कोड (वैकल्पिक)" class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-              ` : ''}
-              <input type="password" id="loginPass" placeholder="लॉगिन पासवर्ड" required class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-              <button type="submit" class="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs mt-2">${isReg ? 'अकाउंट बनाएं' : 'लॉगिन करें'}</button>
-            </form>
-          </div>
-        </div>
-      `;
-    }
-
-    function handleAuthSubmit(e) {
-      e.preventDefault();
-      const phone = document.getElementById('phone').value.trim();
-      const loginPass = document.getElementById('loginPass').value.trim();
-
-      if (phone === "admin" && loginPass === ADMIN_PASS) {
-        isAdmin = true;
-        render();
-        return;
-      }
-
-      const users = getStorage('glow_users', {});
-
-      if (isReg) {
-        const username = document.getElementById('username').value.trim();
-        const withdrawPass = document.getElementById('withdrawPass').value.trim();
-
-        if (users[phone]) {
-          alert('यह नंबर पहले से रजिस्टर्ड है! कृपया लॉगिन करें।');
-          return;
-        }
-
-        users[phone] = {
-          phone,
-          username,
-          loginPass,
-          withdrawPass,
-          inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-          rechargeWallet: 0,
-          withdrawWallet: 0,
-          productIncome: 0,
-          vipLevel: 0,
-          spinChances: 1,
-          bankLocked: false,
-          bankDetails: null,
-          myPlans: [],
-          withdrawHistory: []
-        };
-
-        setStorage('glow_users', users);
-        currentSession = phone;
-        localStorage.setItem('glow_session', phone);
-        alert('रजिस्ट्रेशन सफल रहा!');
-        render();
-      } else {
-        if (!users[phone] || users[phone].loginPass !== loginPass) {
-          alert('गलत मोबाइल नंबर या पासवर्ड!');
-          return;
-        }
-        currentSession = phone;
-        localStorage.setItem('glow_session', phone);
-        render();
-      }
-    }
-
-    function renderTabContent(tab, user) {
-      if (tab === 'home') {
-        return `
-          <div class="bg-gradient-to-b from-emerald-950 to-gray-900 p-4 border-b border-gray-800">
-            <div class="flex justify-between items-center mb-3">
-              <div class="flex items-center gap-2">
-                <div class="w-9 h-9 rounded-full bg-emerald-500 text-black font-black flex items-center justify-center">${user.username.slice(0,2).toUpperCase()}</div>
-                <div><h4 class="font-bold text-xs text-white">${user.username}</h4><p class="text-[10px] text-emerald-400">ID: ${user.phone}</p></div>
-              </div>
-              <button onclick="logout()" class="text-xs bg-red-600/20 text-red-400 px-2.5 py-1 rounded-lg">लॉग आउट</button>
-            </div>
-            <div class="grid grid-cols-3 gap-2 bg-gray-950 p-3 rounded-xl text-center border border-gray-800">
-              <div><h4 class="text-xs font-bold text-emerald-400">₹${user.productIncome.toFixed(2)}</h4><p class="text-[9px] text-gray-400">Income</p></div>
-              <div class="border-x border-gray-800"><h4 class="text-xs font-bold text-emerald-400">₹${user.rechargeWallet.toFixed(2)}</h4><p class="text-[9px] text-gray-400">Recharge</p></div>
-              <div><h4 class="text-xs font-bold text-emerald-400">₹${user.withdrawWallet.toFixed(2)}</h4><p class="text-[9px] text-gray-400">Withdraw</p></div>
-            </div>
-          </div>
-          <div class="p-4 space-y-3">
-            <div class="grid grid-cols-4 gap-2 text-center">
-              <button onclick="switchTab('recharge')" class="bg-gray-900 p-3 rounded-xl border border-gray-800"><span class="text-lg">💳</span><p class="text-[10px] text-gray-300">Recharge</p></button>
-              <button onclick="switchTab('withdraw')" class="bg-gray-900 p-3 rounded-xl border border-gray-800"><span class="text-lg">🏦</span><p class="text-[10px] text-gray-300">Withdraw</p></button>
-              <button onclick="switchTab('myPlans')" class="bg-gray-900 p-3 rounded-xl border border-gray-800"><span class="text-lg">📄</span><p class="text-[10px] text-gray-300">Orders</p></button>
-              <button onclick="switchTab('profile')" class="bg-gray-900 p-3 rounded-xl border border-gray-800"><span class="text-lg">⚙️</span><p class="text-[10px] text-gray-300">Settings</p></button>
-            </div>
-            <div onclick="switchTab('spin')" class="bg-gradient-to-r from-amber-600 to-orange-600 p-4 rounded-xl text-white cursor-pointer flex justify-between items-center">
-              <div><h3 class="font-bold text-xs">Lucky Spin Wheel</h3><p class="text-[10px]">चांस बचे हैं: ${user.spinChances}</p></div>
-              <span>🎯</span>
-            </div>
-          </div>
-        `;
-      }
-      if (tab === 'invest') {
-        return `
-          <div class="p-4 space-y-3">
-            <h3 class="font-bold text-xs text-white">इन्वेस्टमेंट प्लान</h3>
-            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-2">
-              <h4 class="font-bold text-emerald-400 text-xs">Daily Skincare Starter Plan</h4>
-              <p class="text-[11px] text-gray-300">मूल्य: ₹150 | दैनिक आय: ₹100 | अवधि: 49 दिन</p>
-              <button onclick="buyPlan()" class="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs">प्लान खरीदें (₹150)</button>
-            </div>
-          </div>
-        `;
-      }
-      if (tab === 'recharge') {
-        return `
-          <div class="p-4 space-y-3">
-            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
-              <h3 class="font-bold text-xs text-white">रिचार्ज (न्यूनतम ₹150)</h3>
-              
-              <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 text-center space-y-2">
-                <p class="text-[11px] text-gray-300">QR Code scan karke payment karein:</p>
-                <div class="flex justify-center">
-                  <div class="w-28 h-28 bg-white p-1 rounded-lg flex items-center justify-center">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" alt="QR Code" class="w-full h-full object-contain">
-                  </div>
-                </div>
-              </div>
-
-              <p class="text-[10px] text-gray-400">Payment karne ke baad apna naam, account details, UTR ID aur screenshot yahan bharein:</p>
-              <form onsubmit="handleRecharge(event)" class="space-y-3">
-                <input type="number" id="recAmt" min="150" placeholder="Rashi (₹)" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="text" id="senderName" placeholder="Apna Naam / Account Holder Name" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="text" id="senderAcc" placeholder="Apna Bank Account Number" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="text" id="senderIfsc" placeholder="Bank IFSC Code" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="text" id="recUtr" placeholder="12 anko ki UTR ID" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <div>
-                  <label class="text-[10px] text-gray-400 mb-1 block">Payment Screenshot Upload Karein:</label>
-                  <input type="file" id="recImg" accept="image/*" required class="w-full text-xs text-gray-400 bg-gray-950 p-2 rounded-xl border border-gray-800">
-                </div>
-                <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">Recharge Submit Karein</button>
-              </form>
-            </div>
-          </div>
-        `;
-      }
-      if (tab === 'withdraw') {
-        return `
-          <div class="p-4 space-y-3">
-            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
-              <h3 class="font-bold text-xs text-white">विथड्रॉल (न्यूनतम ₹200)</h3>
-              <p class="text-[10px] text-gray-400">बैलेंस: ₹${user.withdrawWallet.toFixed(2)} (दिन में अधिकतम 2 बार)</p>
-              <form onsubmit="handleWithdraw(event)" class="space-y-3">
-                <input type="number" id="withAmt" min="200" placeholder="राशि (₹)" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <input type="password" id="withPass" placeholder="विथड्रॉल पासवर्ड" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">विथड्रॉल करें</button>
-              </form>
-            </div>
-          </div>
-        `;
-      }
-      if (tab === 'profile') {
-        return `
-          <div class="p-4 space-y-3">
-            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
-              <h3 class="font-bold text-xs text-white">बैंक विवरण</h3>
-              ${user.bankLocked ? `
-                <div class="text-xs text-emerald-300"><p>नाम: ${user.bankDetails.name}</p><p>अकाउंट: ${user.bankDetails.accNo}</p><p>IFSC:${user.bankDetails.ifsc}</p></div>
-              ` : `
-                <form onsubmit="saveBank(event)" class="space-y-2">
-                  <input type="text" id="bName" placeholder="धारक का नाम" required class="w-full p-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                  <input type="text" id="bAcc" placeholder="अकाउंट नंबर" required class="w-full p-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                  <input type="text" id="bIfsc" placeholder="IFSC कोड" required class="w-full p-2 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-                  <button type="submit" class="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs">बैंक सेव करें</button>
-                </form>
-              `}
-            </div>
-          </div>
-        `;
-      }
-      if (tab === 'spin') {
-        return `
-          <div class="p-4 space-y-3 text-center">
-            <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
-              <h3 class="font-bold text-xs text-white">🎡 लकी स्पिन</h3>
-              <p class="text-[10px] text-gray-400">चांस बचे हैं: ${user.spinChances}</p>
-              <button onclick="spinWheel()" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">स्पिन घुमाएं</button>
-            </div>
-          </div>
-        `;
-      }
-      return `<div class="p-4 text-xs text-gray-400">जल्द आ रहा है...</div>`;
     }
 
     function buyPlan() {
       const users = getStorage('glow_users', {});
-      const user = users[currentSession];
-      if (user.rechargeWallet < 150) {
-        alert('रिचार्ज वॉलेट में पर्याप्त बैलेंस नहीं है!');
-        switchTab('recharge');
-        return;
-      }
-      user.rechargeWallet -= 150;
-      user.spinChances += 1;
-      user.myPlans.push({ id: Date.now(), name: 'Daily Skincare Starter Plan', price: 150, date: Date.now() });
+      const u = users[currentSession];
+      if (u.rechargeWallet < 150) return alert('वॉलेट में बैलेंस कम है!');
+      u.rechargeWallet -= 150;
+      u.spinChances += 1;
       setStorage('glow_users', users);
-      alert('प्लान सफलतापूर्वक खरीद लिया गया है!');
-      render();
+      alert('प्लान एक्टिवेट हो गया!');
+      renderMain();
     }
 
-    function handleRecharge(e) {
+    function handleRecSubmit(e) {
       e.preventDefault();
-      const amt = parseFloat(document.getElementById('recAmt').value);
-      const senderName = document.getElementById('senderName').value.trim();
-      const senderAcc = document.getElementById('senderAcc').value.trim();
-      const senderIfsc = document.getElementById('senderIfsc').value.trim();
-      const utr = document.getElementById('recUtr').value.trim();
-      const fileInput = document.getElementById('recImg');
-      
-      if (amt < 150) {
-        alert('न्यूनतम रिचार्ज ₹150 है!');
-        return;
-      }
-      if (!fileInput.files || fileInput.files.length === 0) {
-        alert('कृपया पेमेंट का स्क्रीनशॉट अपलोड करें!');
-        return;
-      }
+      const amt = Number(document.getElementById('ramt').value);
+      const name = document.getElementById('rname').value.trim();
+      const acc = document.getElementById('racc').value.trim();
+      const ifsc = document.getElementById('rifsc').value.trim();
+      const utr = document.getElementById('rutr').value.trim();
+      const file = document.getElementById('rfile').files[0];
 
       const reader = new FileReader();
-      reader.onload = function(event) {
-        const pending = getStorage('glow_pending', []);
-        pending.push({ 
-          id: Date.now(), 
-          phone: currentSession, 
-          senderName, 
-          senderAcc, 
-          senderIfsc, 
-          amount: amt, 
-          utr, 
-          img: event.target.result 
-        });
-        setStorage('glow_pending', pending);
-        alert('रिचार्ज अनुरोध भेज दिया गया है!');
-        switchTab('home');
+      reader.onload = function(evt) {
+        const p = getStorage('glow_pending', []);
+        p.push({ id: Date.now(), phone: currentSession, amt, name, acc, ifsc, utr, img: evt.target.result });
+        setStorage('glow_pending', p);
+        alert('रिचार्ज अनुरोध भेज दिया गया!');
+        currentTab = 'home';
+        renderMain();
       };
-      reader.readAsDataURL(fileInput.files[0]);
+      reader.readAsDataURL(file);
     }
 
-    function handleWithdraw(e) {
+    function handleWithSubmit(e) {
       e.preventDefault();
+      const amt = Number(document.getElementById('wamt').value);
+      const pass = document.getElementById('wpass').value.trim();
       const users = getStorage('glow_users', {});
-      const user = users[currentSession];
-      const amt = parseFloat(document.getElementById('withAmt').value);
-      const pass = document.getElementById('withPass').value.trim();
+      const u = users[currentSession];
 
-      if (!user.bankLocked) {
-        alert('पहले बैंक डिटेल्स सेव करें!');
-        switchTab('profile');
-        return;
-      }
-      if (pass !== user.withdrawPass) {
-        alert('गलत विथड्रॉल पासवर्ड!');
-        return;
-      }
-      if (amt < 200 || amt > user.withdrawWallet) {
-        alert('अमान्य राशि या अपर्याप्त बैलेंस!');
-        return;
-      }
+      if (pass !== u.withdrawPass) return alert('गलत विथड्रॉल पासवर्ड!');
+      if (amt < 200 || amt > u.withdrawWallet) return alert('अमान्य राशि या अपर्याप्त बैलेंस!');
 
-      user.withdrawWallet -= amt;
+      u.withdrawWallet -= amt;
       setStorage('glow_users', users);
-      alert('विथड्रॉल अनुरोध सफल रहा!');
-      render();
+      alert('विथड्रॉल सफल रहा!');
+      renderMain();
     }
 
-    function saveBank(e) {
-      e.preventDefault();
+    function doSpin() {
       const users = getStorage('glow_users', {});
-      const user = users[currentSession];
-      user.bankDetails = {
-        name: document.getElementById('bName').value.trim(),
-        accNo: document.getElementById('bAcc').value.trim(),
-        ifsc: document.getElementById('bIfsc').value.trim()
-      };
-      user.bankLocked = true;
+      const u = users[currentSession];
+      if (u.spinChances <= 0) return alert('कोई चांस नहीं बचा!');
+      u.spinChances -= 1;
+      const reward = [0, 10, 20, 50, 100][Math.floor(Math.random() * 5)];
+      u.withdrawWallet += reward;
       setStorage('glow_users', users);
-      alert('बैंक विवरण सेव हो गए!');
-      render();
-    }
-
-    function spinWheel() {
-      const users = getStorage('glow_users', {});
-      const user = users[currentSession];
-      if (user.spinChances <= 0) {
-        alert('कोई स्पिन चांस नहीं बचा है!');
-        return;
-      }
-      user.spinChances -= 1;
-      const rewards = [0, 10, 20, 50, 100];
-      const won = rewards[Math.floor(Math.random() * rewards.length)];
-      user.withdrawWallet += won;
-      setStorage('glow_users', users);
-      alert(won > 0 ? `बधाई हो! आपने ₹${won} जीते हैं!` : 'इस बार कुछ नहीं निकला!');
-      render();
+      alert(reward > 0 ? `आपने ₹${reward} जीते!` : 'कुछ नहीं निकला!');
+      renderMain();
     }
 
     function logout() {
       currentSession = null;
       localStorage.removeItem('glow_session');
-      render();
+      location.reload();
     }
 
-    function renderAdmin() {
-      const pending = getStorage('glow_pending', []);
-      const history = getStorage('glow_approved_history', []);
-      const rejected = getStorage('glow_rejected_history', []);
+    function renderAdminView() {
+      const p = getStorage('glow_pending', []);
+      const h = getStorage('glow_approved_history', []);
+      const r = getStorage('glow_rejected_history', []);
+      const app = document.getElementById('app');
 
-      return `
-        <div class="p-4 space-y-4 text-xs text-white pb-20">
-          <div class="flex justify-between items-center bg-gray-900 p-3 rounded-xl border border-gray-800">
-            <h1 class="font-bold text-emerald-400">🛡️ Admin Dashboard</h1>
-            <button onclick="isAdmin=false;render()" class="bg-emerald-600 px-3 py-1 rounded-lg">बाहर निकलें</button>
+      let html = `
+        <div style="padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3>Admin Panel</h3>
+            <button onclick="isAdmin=false;location.reload()" class="btn" style="width:auto; padding:5px 10px;">Exit</button>
           </div>
-
-          <h3 class="font-bold text-yellow-400">पेंडिंग रिचार्ज (${pending.length})</h3>
-          ${pending.length === 0 ? '<p class="text-gray-500">कोई पेंडिंग रिचार्ज नहीं है।</p>' : ''}
-          ${pending.map(p => `
-            <div class="bg-gray-900 p-3 rounded-xl border border-gray-800 space-y-2">
-              <p>मोबाइल: ${p.phone} \vert{} नाम: ${p.senderName || 'N/A'}</p>
-              <p class="text-gray-300">बैंक A/C: ${p.senderAcc \vert{}\vert{} 'N/A'} \vert{} IFSC:${p.senderIfsc || 'N/A'}</p>
-              <p class="text-emerald-400 font-bold">राशि: ₹${p.amount}</p>
-              <p class="text-yellow-400 font-mono">UTR: ${p.utr}</p>
-              <img src="${p.img}" class="w-20 h-20 object-cover rounded">
-              <div class="flex gap-2">
-                <button onclick="approveRecharge(${p.id})" class="flex-1 py-1.5 bg-emerald-600 rounded-lg font-bold">Approve</button>
-                <button onclick="disapproveRecharge(${p.id})" class="flex-1 py-1.5 bg-red-600 rounded-lg font-bold">Disapprove</button>
-              </div>
-            </div>
-          `).join('')}
-
-          <div class="border-t border-gray-800 pt-4 mt-4">
-            <h3 class="font-bold text-emerald-400">अप्रूव्ड रिचार्ज हिस्ट्री (${history.length})</h3>
-            ${history.length === 0 ? '<p class="text-gray-500 mt-2">कोई पुरानी हिस्ट्री नहीं है।</p>' : ''}
-            <div class="space-y-2 mt-2">
-              ${history.map(h => `
-                <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 text-[11px] flex justify-between items-center">
-                  <div>
-                    <p class="text-gray-300">मोबाइल: ${h.phone} \vert{} नाम: ${h.senderName || 'N/A'}</p>
-                    <p class="text-gray-400 text-[10px]">A/C: ${h.senderAcc \vert{}\vert{} 'N/A'} (${h.senderIfsc || 'N/A'})</p>
-                    <p class="text-emerald-400 font-bold">₹${h.amount} (UTR:${h.utr})</p>
-                  </div>
-                  <span class="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-1 rounded">Approved</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-
-          <div class="border-t border-gray-800 pt-4 mt-4">
-            <h3 class="font-bold text-red-400">डिस्अप्रूव्ड रिचार्ज हिस्ट्री (${rejected.length})</h3>
-            ${rejected.length === 0 ? '<p class="text-gray-500 mt-2">कोई अस्वीकृत हिस्ट्री नहीं है।</p>' : ''}
-            <div class="space-y-2 mt-2">
-              ${rejected.map(r => `
-                <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 text-[11px] flex justify-between items-center">
-                  <div>
-                    <p class="text-gray-300">मोबाइल: ${r.phone} \vert{} नाम: ${r.senderName || 'N/A'}</p>
-                    <p class="text-gray-400 text-[10px]">A/C: ${r.senderAcc \vert{}\vert{} 'N/A'} (${r.senderIfsc || 'N/A'})</p>
-                    <p class="text-red-400 font-bold">₹${r.amount} (UTR:${r.utr})</p>
-                  </div>
-                  <span class="text-[10px] bg-red-950 text-red-300 px-2 py-1 rounded">Disapproved</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </div>
+          <h4>पेंडिंग रिक्वेस्ट (${p.length})</h4>
       `;
+
+      p.forEach(item => {
+        html += `
+          <div class="card" style="margin-top:8px;">
+            <p>यूजर: ${item.phone} | नाम: ${item.name}</p>
+            <p>खाता: ${item.acc} (${item.ifsc})</p>
+            <p style="color:#34d399;">राशि: ₹${item.amt} | UTR: ${item.utr}</p>
+            <img src="${item.img}" style="width:80px; height:80px; object-fit:cover; margin:6px 0; border-radius:4px;">
+            <div style="display:flex; gap:8px;">
+              <button onclick="actionApprove(${item.id})" class="btn" style="flex:1;">Approve</button>
+              <button onclick="actionDisapprove(${item.id})" class="btn btn-red" style="flex:1;">Disapprove</button>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `<h4 style="margin-top:16px; color:#34d399;">अप्रूव्ड लिस्ट (${h.length})</h4>`;
+      h.forEach(item => {
+        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (UTR: ${item.utr})</div>`;
+      });
+
+      html += `<h4 style="margin-top:16px; color:#f87171;">डिस्अप्रूव्ड लिस्ट (${r.length})</h4>`;
+      r.forEach(item => {
+        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (UTR: ${item.utr})</div>`;
+      });
+
+      html += `</div>`;
+      app.innerHTML = html;
     }
 
-    function approveRecharge(id) {
-      const isConfirmed = confirm("क्या आप वाकई इस रिचार्ज को अप्रूव करना चाहते हैं?");
-      if (!isConfirmed) return;
-
-      let pending = getStorage('glow_pending', []);
-      const req = pending.find(p => p.id === id);
+    function actionApprove(id) {
+      if (!confirm("क्या आप वाकई इस रिचार्ज को अप्रूव करना चाहते हैं?")) return;
+      let p = getStorage('glow_pending', []);
+      const req = p.find(x => x.id === id);
       if (!req) return;
 
       const users = getStorage('glow_users', {});
-      if (users[req.phone]) {
-        users[req.phone].rechargeWallet += req.amount;
-        setStorage('glow_users', users);
-      }
+      if (users[req.phone]) users[req.phone].rechargeWallet += req.amt;
+      setStorage('glow_users', users);
 
-      let history = getStorage('glow_approved_history', []);
-      history.unshift({
-        phone: req.phone,
-        senderName: req.senderName,
-        senderAcc: req.senderAcc,
-        senderIfsc: req.senderIfsc,
-        amount: req.amount,
-        utr: req.utr,
-        time: new Date().toLocaleString()
-      });
-      setStorage('glow_approved_history', history);
+      let h = getStorage('glow_approved_history', []);
+      h.unshift(req);
+      setStorage('glow_approved_history', h);
 
-      pending = pending.filter(p => p.id !== id);
-      setStorage('glow_pending', pending);
-      alert('रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!');
-      render();
+      setStorage('glow_pending', p.filter(x => x.id !== id));
+      renderAdminView();
     }
 
-    function disapproveRecharge(id) {
-      const isConfirmed = confirm("क्या आप वाकई इस रिचार्ज को डिस्अप्रूव (रद्द) करना चाहते हैं?");
-      if (!isConfirmed) return;
-
-      let pending = getStorage('glow_pending', []);
-      const req = pending.find(p => p.id === id);
+    function actionDisapprove(id) {
+      if (!confirm("क्या आप वाकई इस रिचार्ज को डिस्अप्रूव करना चाहते हैं?")) return;
+      let p = getStorage('glow_pending', []);
+      const req = p.find(x => x.id === id);
       if (!req) return;
 
-      let rejected = getStorage('glow_rejected_history', []);
-      rejected.unshift({
-        phone: req.phone,
-        senderName: req.senderName,
-        senderAcc: req.senderAcc,
-        senderIfsc: req.senderIfsc,
-        amount: req.amount,
-        utr: req.utr,
-        time: new Date().toLocaleString()
-      });
-      setStorage('glow_rejected_history', rejected);
+      let r = getStorage('glow_rejected_history', []);
+      r.unshift(req);
+      setStorage('glow_rejected_history', r);
 
-      pending = pending.filter(p => p.id !== id);
-      setStorage('glow_pending', pending);
-      alert('रिचार्ज को डिस्अप्रूव कर दिया गया है!');
-      render();
+      setStorage('glow_pending', p.filter(x => x.id !== id));
+      renderAdminView();
     }
 
-    // ऑटो-स्टार्ट
-    render();
+    if (currentSession) renderMain();
   </script>
 </body>
 </html>
