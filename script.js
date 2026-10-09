@@ -369,6 +369,12 @@ function renderAdmin() {
 }
 
 function approveRecharge(id) {
+  // कन्फर्मेशन पॉप-अप
+  const isConfirmed = confirm("क्या आप वाकई इस रिचार्ज को अप्रूव करना चाहते हैं?");
+  if (!isConfirmed) {
+    return; // अगर Cancel कर दिया, तो कुछ नहीं होगा
+  }
+
   let pending = getStorage('glow_pending', []);
   const req = pending.find(p => p.id === id);
   if (!req) return;
@@ -381,8 +387,9 @@ function approveRecharge(id) {
 
   pending = pending.filter(p => p.id !== id);
   setStorage('glow_pending', pending);
-  alert('रिचार्ज अप्रूव कर दिया गया!');
+  alert('रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!');
   render();
 }
+
 
 render();
