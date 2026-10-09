@@ -36,6 +36,7 @@
         <div id="regExtra" style="display: none;">
           <input type="text" id="uname" placeholder="यूजरनेम" class="input-field">
           <input type="password" id="wPass" placeholder="विथड्रॉल पासवर्ड (अलग)" required class="input-field">
+          <input type="text" id="refBy" placeholder="रेफरल कोड (वैकल्पिक)" class="input-field">
         </div>
         <input type="password" id="lPass" placeholder="लॉगिन पासवर्ड" required class="input-field">
         <button type="submit" class="btn" id="submitBtn">लॉगिन करें</button>
@@ -55,6 +56,20 @@
     let selectedPayMethod = 'qr';
     let rechargeStep = 1;
     let tempRechargeAmt = 150;
+
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refParam = urlParams.get('ref');
+      if (refParam) {
+        setMode(true);
+        setTimeout(() => {
+          const refInput = document.getElementById('refBy');
+          if (refInput) refInput.value = refParam;
+          const phoneInput = document.getElementById('phone');
+          if (phoneInput) phoneInput.value = '';
+        }, 200);
+      }
+    };
 
     function getStorage(k, def) {
       try { return JSON.parse(localStorage.getItem(k)) || def; } catch(e) { return def; }
@@ -86,11 +101,21 @@
       if (isRegister) {
         const u = document.getElementById('uname').value.trim();
         const wp = document.getElementById('wPass').value.trim();
+        const refCode = document.getElementById('refBy') ? document.getElementById('refBy').value.trim() : '';
+
         if (users[p]) return alert('नंबर पहले से रजिस्टर्ड है!');
+        
+        let inviterPhone = null;
+        if (refCode && users[refCode]) {
+          inviterPhone = refCode;
+          users[refCode].inviteCount = (users[refCode].inviteCount || 0) + 1;
+        }
+
         users[p] = {
           phone: p, username: u || p, loginPass: pass, withdrawPass: wp,
           rechargeWallet: 0, withdrawWallet: 0, productIncome: 0,
-          spinChances: 1, myPlans: []
+          spinChances: 1, inviteCount: 0, activeInvitesWithPlan: 0, 
+          referredBy: inviterPhone, claimedBonuses: [], myPlans: []
         };
         setStorage('glow_users', users);
         currentSession = p;
@@ -158,6 +183,9 @@
               <button onclick="currentTab='spin';renderMain()" class="card" style="padding:10px;">🎯<br><span style="font-size:10px;">Spin</span></button>
               <button onclick="currentTab='invest';renderMain()" class="card" style="padding:10px;">💎<br><span style="font-size:10px;">Invest</span></button>
             </div>
+            <div style="margin-top:4px;">
+              <button onclick="currentTab='invite';renderMain()" class="btn" style="background:#2563eb;">👥 Invite & Earn (कमीशन / बोनस)</button>
+            </div>
           </div>
         `;
       } else if (currentTab === 'invest') {
@@ -168,6 +196,45 @@
               <h4 style="color:#34d399;">Starter Plan</h4>
               <p style="font-size:12px; margin:6px 0;">कीमत: ₹150 | दैनिक आय: ₹100 | अवधि: 49 दिन</p>
               <button onclick="buyPlan()" class="btn">₹150 में खरीदें</button>
+            </div>
+          </div>
+        `;
+      } else if (currentTab === 'invite') {
+        const shareUrl = window.location.origin + window.location.pathname + '?ref=' + u.phone;
+        const claimed = u.claimedBonuses || [];
+        const activeInv = u.activeInvitesWithPlan || 0;
+
+        content = `
+          <div style="padding:16px;">
+            <h3>👥 इन्वाइट एंड अर्न</h3>
+            <div class="card" style="margin-top:10px; text-align:left;">
+              <p style="font-size:11px; color:#9ca3af; margin-bottom:6px;">अपना लिंक शेयर करें:</p>
+              <input type="text" value="${shareUrl}" readonly class="input-field" style="font-size:11px;" id="refLink">
+              <button onclick="copyRefLink()" class="btn" style="background:#2563eb;">लिंक कॉपी करें</button>
+            </div>
+            
+            <div class="card">
+              <p style="font-size:12px; color:#34d399; margin-bottom:6px;"><b>आपके एक्टिव इन्वाइट्स (प्लान खरीदने वाले): ${activeInv}</b></p>
+              <p style="font-size:11px; color:#9ca3af; margin-bottom:10px;">आप चाहें तो 2% इन्वेस्टमेंट कमिशन ले सकते हैं या नीचे दिए गए टार्गेट पूरे करके बड़ा बोनस क्लेम कर सकते हैं:</p>
+              
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
+                  <span style="font-size:11px;">5 लोग (₹100 बोनस)</span>
+                  <button onclick="claimMilestone(5, 100)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(5)?'background:#374151;':''}" ${claimed.includes(5)?'disabled':''}>${claimed.includes(5)?'क्लेम्ड':'क्लेम करें'}</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
+                  <span style="font-size:11px;">10 लोग (₹250 बोनस)</span>
+                  <button onclick="claimMilestone(10, 250)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(10)?'background:#374151;':''}" ${claimed.includes(10)?'disabled':''}>${claimed.includes(10)?'क्लेम्ड':'क्लेम करें'}</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
+                  <span style="font-size:11px;">50 लोग (₹600 बोनस)</span>
+                  <button onclick="claimMilestone(50, 600)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(50)?'background:#374151;':''}" ${claimed.includes(50)?'disabled':''}>${claimed.includes(50)?'क्लेम्ड':'क्लेम करें'}</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
+                  <span style="font-size:11px;">100 लोग (₹1500 बोनस)</span>
+                  <button onclick="claimMilestone(100, 1500)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(100)?'background:#374151;':''}" ${claimed.includes(100)?'disabled':''}>${claimed.includes(100)?'क्लेम्ड':'क्लेम करें'}</button>
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -257,14 +324,51 @@
       `;
     }
 
+    function copyRefLink() {
+      const linkBox = document.getElementById('refLink');
+      linkBox.select();
+      navigator.clipboard.writeText(linkBox.value);
+      alert('इन्वाइट लिंक कॉपी हो गया!');
+    }
+
+    function claimMilestone(targetCount, rewardAmt) {
+      const users = getStorage('glow_users', {});
+      const u = users[currentSession];
+      if ((u.activeInvitesWithPlan || 0) < targetCount) {
+        return alert(`आपके पास पर्याप्त एक्टिव इन्वाइट्स नहीं हैं! (चाहिए: ${targetCount})`);
+      }
+      if (!u.claimedBonuses) u.claimedBonuses = [];
+      if (u.claimedBonuses.includes(targetCount)) {
+        return alert('आप यह बोनस पहले ही क्लेम कर चुके हैं!');
+      }
+
+      u.claimedBonuses.push(targetCount);
+      u.withdrawWallet = (u.withdrawWallet || 0) + rewardAmt;
+      setStorage('glow_users', users);
+      alert(`बधाई हो! आपको ₹${reward} का बोनस मिल गया है!`.replace('₹${reward}', '₹' + rewardAmt));
+      renderMain();
+    }
+
     function buyPlan() {
       const users = getStorage('glow_users', {});
       const u = users[currentSession];
       if (u.rechargeWallet < 150) return alert('वॉलेट में बैलेंस कम है!');
+      
       u.rechargeWallet -= 150;
       u.spinChances += 1;
+
+      // यदि इस यूजर को किसी ने इनवाइट किया था और यह इसका पहला प्लान है
+      if (u.referredBy && users[u.referredBy] && !u.hasPurchasedPlan) {
+        u.hasPurchasedPlan = true;
+        users[u.referredBy].activeInvitesWithPlan = (users[u.referredBy].activeInvitesWithPlan || 0) + 1;
+        
+        // 2% कमिशन भी जोड़ें
+        const commission = 150 * 0.02; // ₹3
+        users[u.referredBy].withdrawWallet = (users[u.referredBy].withdrawWallet || 0) + commission;
+      }
+
       setStorage('glow_users', users);
-      alert('प्लान एक्टिवेट हो गया!');
+      alert('प्लान सफलतापूर्वक खरीद लिया गया है!');
       renderMain();
     }
 
