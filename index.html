@@ -200,7 +200,7 @@
                 </div>
               `}
 
-              <button onclick="proceedToPaymentDone()" class="btn" style="margin-top:10px;">मैंने पेमेंट कर दिया है, आगे बढ़ें</button>
+              <button onclick="proceedToPaymentDone()" class="btn" style="margin-top:10px;">पेमेंट करने के लिए आगे बढ़ें</button>
             ` : `
               <div class="card" style="background:#064e3b; border-color:#059669; margin-bottom:12px;">
                 <p style="font-size:12px;">चुनी गई राशि: <b>₹${tempRechargeAmt}</b></p>
@@ -294,18 +294,15 @@
         p.push(newReq);
         setStorage('glow_pending', p);
 
-        // टेलीग्राम पर मैसेज और फोटो भेजने की प्रक्रिया
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
           const textMsg = `🔔 नया रिचार्ज अनुरोध!\n📱 यूजर: ${currentSession}\n👤 नाम: ${name}\n💰 राशि: ₹${amt}\n🔢 UTR: ${utr}\n💳 माध्यम: ${selectedPayMethod}`;
           
-          // पहले टेक्स्ट भेजें
           fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: textMsg })
           }).catch(err => console.log(err));
 
-          // फिर स्क्रीनशॉट फोटो भेजें
           fetch(evt.target.result)
             .then(res => res.blob())
             .then(blob => {
