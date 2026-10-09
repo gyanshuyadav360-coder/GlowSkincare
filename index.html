@@ -45,14 +45,12 @@
   </div>
 
   <script>
-    const ADMIN_PASS = "admin786";
-    const TELEGRAM_BOT_TOKEN = "8854457716:AAEca3kyrRii_0EYrtbZ_62p0zXQlsbnNAE"; 
-    const TELEGRAM_CHAT_ID = "7948579574";
+    // यहाँ अपना Vercel का लाइव लिंक डालें (जैसे https://xxx.vercel.app)
+    const VERCEL_SERVER_URL = "YOUR_VERCEL_URL"; 
 
     let isRegister = false;
     let currentSession = localStorage.getItem('glow_session') || null;
     let currentTab = 'home';
-    let isAdmin = false;
     let selectedPayMethod = 'qr';
     let rechargeStep = 1;
     let tempRechargeAmt = 150;
@@ -65,8 +63,6 @@
         setTimeout(() => {
           const refInput = document.getElementById('refBy');
           if (refInput) refInput.value = refParam;
-          const phoneInput = document.getElementById('phone');
-          if (phoneInput) phoneInput.value = '';
         }, 200);
       }
     };
@@ -90,12 +86,6 @@
       e.preventDefault();
       const p = document.getElementById('phone').value.trim();
       const pass = document.getElementById('lPass').value.trim();
-
-      if (p === "admin" && pass === ADMIN_PASS) {
-        isAdmin = true;
-        renderMain();
-        return;
-      }
 
       const users = getStorage('glow_users', {});
       if (isRegister) {
@@ -148,11 +138,6 @@
 
     function renderMain() {
       const app = document.getElementById('app');
-      if (isAdmin) {
-        renderAdminView();
-        return;
-      }
-
       const users = getStorage('glow_users', {});
       const u = users[currentSession];
       if (!u) {
@@ -184,7 +169,7 @@
               <button onclick="currentTab='invest';renderMain()" class="card" style="padding:10px;">💎<br><span style="font-size:10px;">Invest</span></button>
             </div>
             <div style="margin-top:4px;">
-              <button onclick="currentTab='invite';renderMain()" class="btn" style="background:#2563eb;">👥 Invite & Earn (कमीशन / बोनस)</button>
+              <button onclick="currentTab='invite';renderMain()" class="btn" style="background:#2563eb;">👥 Invite & Earn</button>
             </div>
           </div>
         `;
@@ -201,9 +186,6 @@
         `;
       } else if (currentTab === 'invite') {
         const shareUrl = window.location.origin + window.location.pathname + '?ref=' + u.phone;
-        const claimed = u.claimedBonuses || [];
-        const activeInv = u.activeInvitesWithPlan || 0;
-
         content = `
           <div style="padding:16px;">
             <h3>👥 इन्वाइट एंड अर्न</h3>
@@ -212,29 +194,8 @@
               <input type="text" value="${shareUrl}" readonly class="input-field" style="font-size:11px;" id="refLink">
               <button onclick="copyRefLink()" class="btn" style="background:#2563eb;">लिंक कॉपी करें</button>
             </div>
-            
             <div class="card">
-              <p style="font-size:12px; color:#34d399; margin-bottom:6px;"><b>आपके एक्टिव इन्वाइट्स (प्लान खरीदने वाले): ${activeInv}</b></p>
-              <p style="font-size:11px; color:#9ca3af; margin-bottom:10px;">आप चाहें तो 2% इन्वेस्टमेंट कमिशन ले सकते हैं या नीचे दिए गए टार्गेट पूरे करके बड़ा बोनस क्लेम कर सकते हैं:</p>
-              
-              <div style="display:flex; flex-direction:column; gap:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
-                  <span style="font-size:11px;">5 लोग (₹100 बोनस)</span>
-                  <button onclick="claimMilestone(5, 100)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(5)?'background:#374151;':''}" ${claimed.includes(5)?'disabled':''}>${claimed.includes(5)?'क्लेम्ड':'क्लेम करें'}</button>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
-                  <span style="font-size:11px;">10 लोग (₹250 बोनस)</span>
-                  <button onclick="claimMilestone(10, 250)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(10)?'background:#374151;':''}" ${claimed.includes(10)?'disabled':''}>${claimed.includes(10)?'क्लेम्ड':'क्लेम करें'}</button>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
-                  <span style="font-size:11px;">50 लोग (₹600 बोनस)</span>
-                  <button onclick="claimMilestone(50, 600)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(50)?'background:#374151;':''}" ${claimed.includes(50)?'disabled':''}>${claimed.includes(50)?'क्लेम्ड':'क्लेम करें'}</button>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; background:#111827; padding:8px; border-radius:6px;">
-                  <span style="font-size:11px;">100 लोग (₹1500 बोनस)</span>
-                  <button onclick="claimMilestone(100, 1500)" class="btn" style="width:auto; padding:5px 10px; font-size:11px; ${claimed.includes(100)?'background:#374151;':''}" ${claimed.includes(100)?'disabled':''}>${claimed.includes(100)?'क्लेम्ड':'क्लेम करें'}</button>
-                </div>
-              </div>
+              <p style="font-size:12px; color:#34d399;">एक्टिव इन्वाइट्स: <b>${u.activeInvitesWithPlan || 0}</b></p>
             </div>
           </div>
         `;
@@ -242,51 +203,38 @@
         content = `
           <div style="padding:16px;">
             <h3>रिचार्ज (न्यूनतम ₹150)</h3>
-            
             ${rechargeStep === 1 ? `
               <p style="font-size:11px; color:#9ca3af; margin:10px 0 6px 0;">पेमेंट माध्यम चुनें:</p>
               <div style="display:flex; gap:8px; margin-bottom:12px;">
                 <button onclick="setPayMethod('qr')" class="btn-opt ${selectedPayMethod==='qr'?'selected':''}">📱 QR Code Pay</button>
                 <button onclick="setPayMethod('bank')" class="btn-opt ${selectedPayMethod==='bank'?'selected':''}">🏦 Bank Account Pay</button>
               </div>
-
               <div style="margin-bottom:12px;">
                 <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">रिचार्ज राशि (₹):</label>
                 <input type="number" id="ramt" min="150" value="${tempRechargeAmt}" class="input-field">
               </div>
-
               ${selectedPayMethod === 'qr' ? `
                 <div class="card" style="text-align:center;">
-                  <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करके भुगतान करें:</p>
-                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=gyanshukumar01@ptyes&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px; margin:auto;">
+                  <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करें:</p>
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px; margin:auto;">
                 </div>
               ` : `
                 <div class="card">
-                  <p style="font-size:12px; color:#34d399; font-weight:bold; margin-bottom:6px;">बैंक ट्रांसफर विवरण:</p>
-                  <p style="font-size:11px; color:#9ca3af;">A/C No: 38290100001234<br>IFSC: SBIN0001234<br>Name: GlowSkincare</p>
+                  <p style="font-size:12px; color:#34d399; font-weight:bold; margin-bottom:6px;">बैंक विवरण:</p>
+                  <p style="font-size:11px; color:#9ca3af;">A/C: 38290100001234<br>IFSC: SBIN0001234</p>
                 </div>
               `}
-
               <button onclick="proceedToPaymentDone()" class="btn" style="margin-top:10px;">पेमेंट करने के लिए आगे बढ़ें</button>
             ` : `
               <div class="card" style="background:#064e3b; border-color:#059669; margin-bottom:12px;">
-                <p style="font-size:12px;">चुनी गई राशि: <b>₹${tempRechargeAmt}</b></p>
-                <button onclick="rechargeStep=1;renderMain()" style="background:none; border:none; color:#34d399; font-size:11px; cursor:pointer; text-decoration:underline; margin-top:4px;">← राशि या माध्यम बदलें</button>
+                <p style="font-size:12px;">राशि: <b>₹${tempRechargeAmt}</b></p>
+                <button onclick="rechargeStep=1;renderMain()" style="background:none; border:none; color:#34d399; font-size:11px; cursor:pointer; text-decoration:underline;">← बदलें</button>
               </div>
-
               <form onsubmit="handleRecSubmit(event)">
-                <input type="text" id="rname" placeholder="अपना नाम / खाता धारक का नाम" required class="input-field">
-                
-                ${selectedPayMethod === 'bank' ? `
-                  <input type="text" id="racc" placeholder="अपना बैंक खाता संख्या" required class="input-field">
-                  <input type="text" id="rifsc" placeholder="बैंक IFSC कोड" required class="input-field">
-                ` : ''}
-
+                <input type="text" id="rname" placeholder="खाता धारक का नाम" required class="input-field">
                 <input type="text" id="rutr" placeholder="12 अंकों का UTR नंबर" required class="input-field">
-                
-                <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">पेमेंट स्क्रीनशॉट अपलोड करें (अनिवार्य):</label>
+                <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">स्क्रीनशॉट:</label>
                 <input type="file" id="rfile" accept="image/*" required class="input-field">
-                
                 <button type="submit" class="btn">रिचार्ज सबमिट करें</button>
               </form>
             `}
@@ -328,47 +276,17 @@
       const linkBox = document.getElementById('refLink');
       linkBox.select();
       navigator.clipboard.writeText(linkBox.value);
-      alert('इन्वाइट लिंक कॉपी हो गया!');
-    }
-
-    function claimMilestone(targetCount, rewardAmt) {
-      const users = getStorage('glow_users', {});
-      const u = users[currentSession];
-      if ((u.activeInvitesWithPlan || 0) < targetCount) {
-        return alert(`आपके पास पर्याप्त एक्टिव इन्वाइट्स नहीं हैं! (चाहिए: ${targetCount})`);
-      }
-      if (!u.claimedBonuses) u.claimedBonuses = [];
-      if (u.claimedBonuses.includes(targetCount)) {
-        return alert('आप यह बोनस पहले ही क्लेम कर चुके हैं!');
-      }
-
-      u.claimedBonuses.push(targetCount);
-      u.withdrawWallet = (u.withdrawWallet || 0) + rewardAmt;
-      setStorage('glow_users', users);
-      alert(`बधाई हो! आपको ₹${reward} का बोनस मिल गया है!`.replace('₹${reward}', '₹' + rewardAmt));
-      renderMain();
+      alert('लिंक कॉपी हो गया!');
     }
 
     function buyPlan() {
       const users = getStorage('glow_users', {});
       const u = users[currentSession];
-      if (u.rechargeWallet < 150) return alert('वॉलेट में बैलेंस कम है!');
-      
+      if (u.rechargeWallet < 150) return alert('बैलेंस कम है!');
       u.rechargeWallet -= 150;
       u.spinChances += 1;
-
-      // यदि इस यूजर को किसी ने इनवाइट किया था और यह इसका पहला प्लान है
-      if (u.referredBy && users[u.referredBy] && !u.hasPurchasedPlan) {
-        u.hasPurchasedPlan = true;
-        users[u.referredBy].activeInvitesWithPlan = (users[u.referredBy].activeInvitesWithPlan || 0) + 1;
-        
-        // 2% कमिशन भी जोड़ें
-        const commission = 150 * 0.02; // ₹3
-        users[u.referredBy].withdrawWallet = (users[u.referredBy].withdrawWallet || 0) + commission;
-      }
-
       setStorage('glow_users', users);
-      alert('प्लान सफलतापूर्वक खरीद लिया गया है!');
+      alert('प्लान एक्टिवेट हो गया!');
       renderMain();
     }
 
@@ -376,56 +294,33 @@
       e.preventDefault();
       const amt = tempRechargeAmt;
       const name = document.getElementById('rname').value.trim();
-      const acc = document.getElementById('racc') ? document.getElementById('racc').value.trim() : 'N/A (QR Pay)';
-      const ifsc = document.getElementById('rifsc') ? document.getElementById('rifsc').value.trim() : 'N/A';
       const utr = document.getElementById('rutr').value.trim();
       const file = document.getElementById('rfile').files[0];
 
       const reader = new FileReader();
       reader.onload = function(evt) {
-        const p = getStorage('glow_pending', []);
-        const newReq = { 
-          id: Date.now(), 
-          phone: currentSession, 
-          method: selectedPayMethod === 'qr' ? 'QR Code' : 'Bank Transfer',
-          amt, 
-          name, 
-          acc, 
-          ifsc, 
-          utr, 
-          img: evt.target.result 
-        };
-        p.push(newReq);
-        setStorage('glow_pending', p);
+        const imgUrl = evt.target.result;
 
-        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
-          const textMsg = `🔔 नया रिचार्ज अनुरोध!\n📱 यूजर: ${currentSession}\n👤 नाम: ${name}\n💰 राशि: ₹${amt}\n🔢 UTR: ${utr}\n💳 माध्यम: ${selectedPayMethod}`;
-          
-          fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: textMsg })
-          }).catch(err => console.log(err));
-
-          fetch(evt.target.result)
-            .then(res => res.blob())
-            .then(blob => {
-              const formData = new FormData();
-              formData.append('chat_id', TELEGRAM_CHAT_ID);
-              formData.append('photo', blob, 'screenshot.jpg');
-              formData.append('caption', `स्क्रीनशॉट - UTR: ${utr} (₹${amt})`);
-
-              fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
-                method: 'POST',
-                body: formData
-              }).catch(err => console.log(err));
-            });
-        }
-
-        alert('रिचार्ज अनुरोध भेज दिया गया!');
-        currentTab = 'home';
-        rechargeStep = 1;
-        renderMain();
+        // Vercel सर्वर को डेटा भेजना ताकि टेलीग्राम पर बटन आए
+        fetch(`${VERCEL_SERVER_URL}/api/webhook`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'submit_recharge',
+            phone: currentSession,
+            amt: amt,
+            utr: utr,
+            name: name,
+            imgUrl: imgUrl
+          })
+        }).then(res => res.json()).then(data => {
+          alert('रिचार्ज अनुरोध टेलीग्राम पर भेज दिया गया है!');
+          currentTab = 'home';
+          rechargeStep = 1;
+          renderMain();
+        }).catch(err => {
+          alert('सर्वर एरर! कृपया Vercel लिंक चेक करें।');
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -436,25 +331,23 @@
       const pass = document.getElementById('wpass').value.trim();
       const users = getStorage('glow_users', {});
       const u = users[currentSession];
-
-      if (pass !== u.withdrawPass) return alert('गलत विथड्रॉल पासवर्ड!');
-      if (amt < 200 || amt > u.withdrawWallet) return alert('अमान्य राशि या अपर्याप्त बैलेंस!');
-
+      if (pass !== u.withdrawPass) return alert('गलत पासवर्ड!');
+      if (amt < 200 || amt > u.withdrawWallet) return alert('अमान्य राशि!');
       u.withdrawWallet -= amt;
       setStorage('glow_users', users);
-      alert('विथड्रॉल सफल रहा!');
+      alert('सफल!');
       renderMain();
     }
 
     function doSpin() {
       const users = getStorage('glow_users', {});
       const u = users[currentSession];
-      if (u.spinChances <= 0) return alert('कोई चांस नहीं बचा!');
+      if (u.spinChances <= 0) return alert('चांस खत्म!');
       u.spinChances -= 1;
       const reward = [0, 10, 20, 50, 100][Math.floor(Math.random() * 5)];
       u.withdrawWallet += reward;
       setStorage('glow_users', users);
-      alert(reward > 0 ? `आपने ₹${reward} जीते!` : 'कुछ नहीं निकला!');
+      alert(`₹${reward} जीते!`);
       renderMain();
     }
 
@@ -462,83 +355,6 @@
       currentSession = null;
       localStorage.removeItem('glow_session');
       location.reload();
-    }
-
-    function renderAdminView() {
-      const p = getStorage('glow_pending', []);
-      const h = getStorage('glow_approved_history', []);
-      const r = getStorage('glow_rejected_history', []);
-      const app = document.getElementById('app');
-
-      let html = `
-        <div style="padding:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h3>Admin Panel</h3>
-            <button onclick="isAdmin=false;location.reload()" class="btn" style="width:auto; padding:5px 10px;">Exit</button>
-          </div>
-          <h4>पेंडिंग रिक्वेस्ट (${p.length})</h4>
-      `;
-
-      p.forEach(item => {
-        html += `
-          <div class="card" style="margin-top:8px;">
-            <p>यूजर: ${item.phone} | नाम: ${item.name}</p>
-            <p style="font-size:11px; color:#9ca3af;">माध्यम: <b>${item.method}</b></p>
-            ${item.acc !== 'N/A (QR Pay)' ? `<p style="font-size:11px; color:#9ca3af;">खाता: ${item.acc} (${item.ifsc})</p>` : ''}
-            <p style="color:#34d399;">राशि: ₹${item.amt} | UTR: ${item.utr}</p>
-            <img src="${item.img}" style="width:80px; height:80px; object-fit:cover; margin:6px 0; border-radius:4px;">
-            <div style="display:flex; gap:8px;">
-              <button onclick="actionApprove(${item.id})" class="btn" style="flex:1;">Approve</button>
-              <button onclick="actionDisapprove(${item.id})" class="btn btn-red" style="flex:1;">Disapprove</button>
-            </div>
-          </div>
-        `;
-      });
-
-      html += `<h4 style="margin-top:16px; color:#34d399;">अप्रूव्ड लिस्ट (${h.length})</h4>`;
-      h.forEach(item => {
-        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (${item.method} | UTR: ${item.utr})</div>`;
-      });
-
-      html += `<h4 style="margin-top:16px; color:#f87171;">डिस्अप्रूव्ड लिस्ट (${r.length})</h4>`;
-      r.forEach(item => {
-        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (${item.method} | UTR: ${item.utr})</div>`;
-      });
-
-      html += `</div>`;
-      app.innerHTML = html;
-    }
-
-    function actionApprove(id) {
-      if (!confirm("क्या आप वाकई इस रिचार्ज को अप्रूव करना चाहते हैं?")) return;
-      let p = getStorage('glow_pending', []);
-      const req = p.find(x => x.id === id);
-      if (!req) return;
-
-      const users = getStorage('glow_users', {});
-      if (users[req.phone]) users[req.phone].rechargeWallet += req.amt;
-      setStorage('glow_users', users);
-
-      let h = getStorage('glow_approved_history', []);
-      h.unshift(req);
-      setStorage('glow_approved_history', h);
-
-      setStorage('glow_pending', p.filter(x => x.id !== id));
-      renderAdminView();
-    }
-
-    function actionDisapprove(id) {
-      if (!confirm("क्या आप वाकई इस रिचार्ज को डिस्अप्रूव करना चाहते हैं?")) return;
-      let p = getStorage('glow_pending', []);
-      const req = p.find(x => x.id === id);
-      if (!req) return;
-
-      let r = getStorage('glow_rejected_history', []);
-      r.unshift(req);
-      setStorage('glow_rejected_history', r);
-
-      setStorage('glow_pending', p.filter(x => x.id !== id));
-      renderAdminView();
     }
 
     if (currentSession) renderMain();
