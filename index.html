@@ -44,9 +44,7 @@
       const [isAdminMode, setIsAdminMode] = React.useState(false);
 
       const [phoneInput, setPhoneInput] = React.useState('');
-      const [usernameInput, setUsernameInput] = React.useState('');
-      const [loginPassInput, setLoginPassInput] = React.useState('');
-      const [withdrawPassInput, setWithdrawPassInput] = React.useState('');
+      const [passInput, setPassInput] = React.useState('');
       const [inviteInput, setInviteInput] = React.useState('');
       const [isRegistering, setIsRegistering] = React.useState(false);
 
@@ -58,7 +56,6 @@
       const [utrInput, setUtrInput] = React.useState('');
       const [screenshotImage, setScreenshotImage] = React.useState('');
       const [withdrawAmount, setWithdrawAmount] = React.useState('');
-      const [userWithdrawPassInput, setUserWithdrawPassInput] = React.useState('');
 
       const [bankName, setBankName] = React.useState('');
       const [accNo, setAccNo] = React.useState('');
@@ -102,14 +99,14 @@
         e.preventDefault();
         const registeredUsers = getAllUsers();
 
-        if (phoneInput === "admin" && loginPassInput === ADMIN_SECRET_PASS) {
+        if (phoneInput === "admin" && passInput === ADMIN_SECRET_PASS) {
           setIsAdminMode(true);
           return;
         }
 
         if (isRegistering) {
-          if (!phoneInput || !usernameInput || !loginPassInput || !withdrawPassInput || !otpInput) {
-            alert('कृपया मोबाइल नंबर, यूजरनेम, लॉगिन पासवर्ड, विथड्रॉल पासवर्ड और OTP सभी फ़ील्ड भरें!');
+          if (!phoneInput || !passInput || !otpInput) {
+            alert('कृपया सभी फ़ील्ड और OTP भरें');
             return;
           }
           if (otpInput !== generatedOtp) {
@@ -139,13 +136,9 @@
 
           const newUser = {
             phone: phoneInput,
-            username: usernameInput.trim(),
-            loginPassword: loginPassInput,
-            withdrawPassword: withdrawPassInput,
+            password: passInput,
             inviteCode: generateInviteCode(),
             referredBy: referredByPhone,
-            referralMode: 'commission', // Default 2% commission mode
-            inviteCount: 0,
             rechargeWallet: 0,
             withdrawWallet: 0,
             productIncome: 0,
@@ -154,13 +147,8 @@
             bankDetails: null,
             bankLocked: false,
             myPlans: [],
-            withdrawHistory: []
+            withdrawHistory: [] // [{ amount, date }]
           };
-
-          // Update referrer count if valid
-          if (referredByPhone && registeredUsers[referredByPhone]) {
-            registeredUsers[referredByPhone].inviteCount = (registeredUsers[referredByPhone].inviteCount || 0) + 1;
-          }
 
           registeredUsers[phoneInput] = newUser;
           localStorage.setItem('glow_users', JSON.stringify(registeredUsers));
@@ -170,8 +158,8 @@
           alert('सफलतापूर्वक रजिस्ट्रेशन हो गया!');
 
         } else {
-          if (!phoneInput || !loginPassInput) {
-            alert('कृपया मोबाइल नंबर और लॉगिन पासवर्ड दर्ज करें');
+          if (!phoneInput || !passInput) {
+            alert('कृपया मोबाइल नंबर और पासवर्ड दर्ज करें');
             return;
           }
           if (!registeredUsers[phoneInput]) {
@@ -180,8 +168,8 @@
             return;
           }
           const existingUser = registeredUsers[phoneInput];
-          if (existingUser.loginPassword !== loginPassInput) {
-            alert('गलत लॉगिन पासवर्ड! कृपया सही पासवर्ड डालें।');
+          if (existingUser.password !== passInput) {
+            alert('गलत पासवर्ड! कृपया सही पासवर्ड डालें।');
             return;
           }
           localStorage.setItem('glow_current_session', phoneInput);
@@ -199,7 +187,6 @@
       const [, setForceRender] = React.useState(0);
       const triggerRefresh = () => setForceRender(prev => prev + 1);
 
-      // Buy Plan & Referral Logic (2% commission or milestone rewards)
       const handleBuyPlan = () => {
         const planPrice = 150;
         const currentCount = (user.myPlans || []).filter(p => p.id === 1).length;
@@ -232,31 +219,280 @@
         u.spinChances += 1;
         u.myPlans = [...(u.myPlans || []), newPlan];
 
-        // Referral reward distribution based on referrer's chosen mode
         if (u.referredBy && allUsers[u.referredBy]) {
-          const refUser = allUsers[u.referredBy];
-          if (refUser.referralMode === 'commission') {
-            const commission = planPrice * 0.02; // 2% commission
-            refUser.withdrawWallet += commission;
-          } else {
-            // Milestone mode reward check
-            const invCount = refUser.inviteCount || 0;
-            let rewardBonus = 0;
-            if (invCount === 5) rewardBonus = 100;
-            else if (invCount === 10) rewardBonus = 250;
-            else if (invCount === 50) rewardBonus = 1400;
-            else if (invCount === 100) rewardBonus = 3000;
-
-            if (rewardBonus > 0 && !refUser.milestoneClaimed) {
-              refUser.withdrawWallet += rewardBonus;
-              refUser.milestoneClaimed = true; // one-time milestone credit or per rule
-            }
-          }
+          const commission = planPrice * 0.10;
+          allUsers[u.referredBy].withdrawWallet += commission;
         }
 
         allUsers[currentUserPhone] = u;
         localStorage.setItem('glow_users', JSON.stringify(allUsers));
         triggerRefresh();
+
+        alert('प्लान सफलतापूर्वक खरीद लिया गया है! (रेफरर को 10% कमीशन भेज दिया गया है)');
+      };
+
+      const handleClaimPlan = (purchaseId) => {
+        const plan = (user.myPlans || []).find(p => p.purchaseId === purchaseId);
+        if (!plan || plan.claimed) return;
+
+        const daysPassed = (new Date().getTime() - plan.purchaseDate) / (1000 * 60 * 60 * 24);
+        if (daysPassed < plan.durationDays) {
+          alert('प्लान अभी लॉक है! 49 दिन अभी पूरे नहीं हुए हैं।');
+          return;
+        }
+
+        const totalReturn = plan.dailyIncome * plan.durationDays;
+
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.withdrawWallet += totalReturn;
+        u.productIncome += totalReturn;
+        u.myPlans = u.myPlans.map(p => p.purchaseId === purchaseId ? { ...p, claimed: true } : p);
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
+
+        alert(`बधाई हो! ₹${totalReturn} आपके विथड्रॉल वॉलेट में जोड़ दिए गए हैं।`);
+      };
+
+      const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setScreenshotImage(reader.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      // Minimum Recharge Limit: Rs. 150
+      const handleRechargeSubmit = (e) => {
+        e.preventDefault();
+        const amt = parseFloat(rechargeAmount);
+        
+        if (!amt || amt < 150) {
+          alert('न्यूनतम रिचार्ज राशि ₹150 है! कृपया ₹150 या उससे अधिक दर्ज करें।');
+          return;
+        }
+        if (!utrInput || utrInput.trim().length < 6) {
+          alert('कृपया 12 अंकों की सही UTR / Transaction ID दर्ज करें');
+          return;
+        }
+        if (!screenshotImage) {
+          alert('कृपया भुगतान का स्क्रीनशॉट (फोटो) अपलोड करना अनिवार्य है!');
+          return;
+        }
+
+        const upiLink = `upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&am=${amt}&cu=INR`;
+        window.location.href = upiLink;
+
+        const pendingList = getPendingRecharges();
+        const newReq = {
+          id: Date.now(),
+          phone: currentUserPhone,
+          amount: amt,
+          utr: utrInput.trim(),
+          screenshot: screenshotImage,
+          date: new Date().toLocaleString(),
+          status: 'Pending'
+        };
+        pendingList.push(newReq);
+        localStorage.setItem('glow_pending_recharges', JSON.stringify(pendingList));
+
+        setRechargeAmount('');
+        setUtrInput('');
+        setScreenshotImage('');
+        alert(`रिचार्ज अनुरोध सफलतापूर्वक दर्ज हो गया है!\nनोट: रात 12 बजे तक आपके वॉलेट में राशि जोड़ी जाएगी।`);
+      };
+
+      const handleAdminApprove = (reqId) => {
+        const pendingList = getPendingRecharges();
+        const req = pendingList.find(r => r.id === reqId);
+        if (!req) return;
+
+        const allUsers = getAllUsers();
+        if (allUsers[req.phone]) {
+          allUsers[req.phone].rechargeWallet += req.amount;
+          localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        }
+
+        const updatedList = pendingList.filter(r => r.id !== reqId);
+        localStorage.setItem('glow_pending_recharges', JSON.stringify(updatedList));
+        triggerRefresh();
+        alert(`यूज़र ${req.phone} (UTR: ${req.utr}) का ₹${req.amount} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
+      };
+
+      // Withdrawal Limits: Min Rs. 200 & Max 2 times per day
+      const handleWithdrawSubmit = (e) => {
+        e.preventDefault();
+        const amt = parseFloat(withdrawAmount);
+
+        if (!user.bankLocked) {
+          alert('कृपया पैसे निकालने से पहले अपनी बैंक डिटेल्स सेव करें!');
+          return;
+        }
+        if (!amt || amt < 200) {
+          alert('न्यूनतम विथड्रॉल राशि ₹200 है! कृपया ₹200 या उससे अधिक दर्ज करें।');
+          return;
+        }
+        if (amt > user.withdrawWallet) {
+          alert('विथड्रॉल वॉलेट में पर्याप्त बैलेंस नहीं है!');
+          return;
+        }
+
+        // Check Today's withdrawal count (Max 2 times per day)
+        const todayStr = new Date().toDateString();
+        const history = user.withdrawHistory || [];
+        const todayCount = history.filter(item => new Date(item.timestamp).toDateString() === todayStr).length;
+
+        if (todayCount >= 2) {
+          alert('दैनिक सीमा समाप्त! आप 1 दिन में केवल 2 बार ही विथड्रॉल कर सकते हैं।');
+          return;
+        }
+
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.withdrawWallet -= amt;
+        u.withdrawHistory = [...(u.withdrawHistory || []), { amount: amt, timestamp: Date.now() }];
+        
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        setWithdrawAmount('');
+        triggerRefresh();
+        alert(`₹${amt} का विथड्रॉल अनुरोध सफलतापूर्वक दर्ज हो गया है! (आज का ${todayCount + 1}/2 विथड्रॉल)`);
+      };
+
+      const handleSaveBank = (e) => {
+        e.preventDefault();
+        if (!bankName || !accNo || !ifsc) {
+          alert('कृपया सभी बैंक विवरण भरें');
+          return;
+        }
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.bankDetails = { name: bankName, accountNo: accNo, ifsc: ifsc };
+        u.bankLocked = true;
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
+        alert('बैंक विवरण सुरक्षित रूप से सेव और लॉक कर दिए गए हैं!');
+      };
+
+      const handleBuyVip = (level, price) => {
+        if (user.vipLevel !== level - 1) {
+          alert(`पहले VIP ${level - 1} खरीदना अनिवार्य है!`);
+          return;
+        }
+        if (user.rechargeWallet < price) {
+          alert('VIP अपग्रेड करने के लिए रिचार्ज वॉलेट में पर्याप्त बैलेंस नहीं है!');
+          setCurrentTab('recharge');
+          return;
+        }
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.rechargeWallet -= price;
+        u.vipLevel = level;
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
+        alert(`बधाई हो! अब आप VIP ${level} के सदस्य बन गए हैं।`);
+      };
+
+      const handleSpinWheel = () => {
+        if (user.spinChances <= 0) {
+          alert('कोई स्पिन चांस नहीं बचा है! प्लान खरीदने पर नया चांस मिलता है।');
+          return;
+        }
+
+        setSpinning(true);
+        setSpinResult(null);
+
+        const allUsers = getAllUsers();
+        allUsers[currentUserPhone].spinChances -= 1;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
+
+        setTimeout(() => {
+          const weightedRewards = [0, 0, 0, 0, 10, 10, 10, 20, 20, 50, 100, 200];
+          const randomReward = weightedRewards[Math.floor(Math.random() * weightedRewards.length)];
+          setSpinResult(randomReward);
+          setSpinning(false);
+
+          if (randomReward > 0) {
+            const uAll = getAllUsers();
+            uAll[currentUserPhone].withdrawWallet += randomReward;
+            localStorage.setItem('glow_users', JSON.stringify(uAll));
+            triggerRefresh();
+          }
+        }, 2500);
+      };
+
+      const handleAiSend = (e) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const userMsg = chatInput.trim();
+        const newMsgs = [...aiMessages, { sender: 'user', text: userMsg }];
+        setAiMessages(newMsgs);
+        setChatInput('');
+
+        setTimeout(() => {
+          let botReply = "मैं आपकी बात समझ नहीं पा रहा हूँ। आप मुझसे 'रिचार्ज कैसे करें?', 'पैसे कब मिलेंगे?', 'विथड्रॉल नियम क्या हैं?' या 'प्लान डिटेल्स' के बारे में पूछ सकते हैं।";
+          const lower = userMsg.toLowerCase();
+
+          if (lower.includes('recharge') || lower.includes('रिचार्ज') || lower.includes('add money') || lower.includes('paisa')) {
+            botReply = "💳 **रिचार्ज नियम:**\n- न्यूनतम रिचार्ज: ₹150\n- UTR और स्क्रीनशॉट अपलोड करना अनिवार्य है।\n- रात 12 बजे तक आपके वॉलेट में राशि जोड़ी जाएगी।";
+          } else if (lower.includes('withdraw') || lower.includes('विथड्रॉल') || lower.includes('nikalna') || lower.includes('bank')) {
+            botReply = "🏦 **विथड्रॉल नियम:**\n- न्यूनतम विथड्रॉल: ₹200\n- दैनिक सीमा: 1 दिन में अधिकतम केवल 2 बार विथड्रॉल कर सकते हैं।\n- बैंक डिटेल्स प्रोफाइल में सेव होनी चाहिए।";
+          } else if (lower.includes('plan') || lower.includes('starter') || lower.includes('invest') || lower.includes('₹150')) {
+            botReply = "💎 **इन्वेस्टमेंट प्लान डिटेल्स:**\n- प्लान मूल्य: ₹150\n- दैनिक आय: ₹100\n- अवधि: 49 दिन (कुल रिटर्न ₹4900)\n- दोस्तों को इनवाइट करने पर उनके प्लान खरीदने का 10% कमीशन मिलता है!";
+          } else if (lower.includes('spin') || lower.includes('wheel') || lower.includes('लकी')) {
+            botReply = "🎡 **लकी स्पिन:** हर नया प्लान खरीदने पर आपको 1 स्पिन चांस मिलता है!";
+          } else if (lower.includes('hello') || lower.includes('hi') || lower.includes('नमस्ते') || lower.includes('hey')) {
+            botReply = "नमस्ते! GlowSkincare में आपका स्वागत है। बताइए, आज मैं आपकी क्या सहायता कर सकता हूँ?";
+          }
+
+          setAiMessages([...newMsgs, { sender: 'ai', text: botReply }]);
+        }, 900);
+      };
+
+      // --- ADMIN VIEW ---
+      if (isAdminMode) {
+        const pendingRecharges = getPendingRecharges();
+        return (
+          <div className="min-h-screen bg-gray-950 text-white p-4 font-sans max-w-md mx-auto relative shadow-2xl animate-fadeIn">
+            <div className="flex justify-between items-center mb-6 bg-gray-900 p-4 rounded-2xl border border-gray-800 shadow-lg">
+              <div>
+                <h1 className="text-xl font-bold text-emerald-400">🛡️ Admin Dashboard</h1>
+                <p className="text-xs text-gray-400">UTR और स्क्रीनशॉट मिलान करें</p>
+              </div>
+              <button onClick={() => setIsAdminMode(false)} className="bg-emerald-600 hover:bg-emerald-700 transition px-3 py-1.5 rounded-xl text-xs font-semibold shadow">
+                ऐप पर जाएं
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="font-bold text-sm text-gray-300">पेंडिंग रिचार्ज अनुरोध ({pendingRecharges.length})</h3>
+              {pendingRecharges.length === 0 ? (
+                <div className="text-center py-12 bg-gray-900/50 rounded-2xl border border-gray-800">
+                  <p className="text-gray-400 text-sm">कोई पेंडिंग रिचार्ज नहीं है।</p>
+                </div>
+              ) : (
+                pendingRecharges.map((req) => (
+                  <div key={req.id} className="bg-gray-900 p-4 rounded-2xl border border-gray-800 space-y-3 shadow-md animate-fadeIn">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-xs text-gray-400">मोबाइल: <span className="font-bold text-white">{req.phone}</span></p>
+                        <p className="text-lg font-bold text-emerald-400 my-0.5">₹{req.amount}</p>
+                      </div>
+                      <span className="bg-amber-500/20 text-amber-300 px-2.5 py-0.5 rounded text-[10px] font-bold">Pending</span>
+                    </div>
+
+                    <div className="bg-gray-950 p-2.5 rounded-xl border border-gray-800">
+                      <p className="text-[11px] text-gray-400">UTR / Transaction ID:</p>
+                      <p className="text-xs font-mono font-bold text-yellow-400 tracking-wider">{req.utr}</p>
+  esh();
 
         alert('प्लान सफलतापूर्वक खरीद लिया गया है! (रेफरल रिवॉर्ड अपडेट कर दिया गया है)');
       };
