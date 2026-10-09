@@ -186,12 +186,28 @@ function renderTabContent(tab, user) {
       <div class="p-4 space-y-3">
         <div class="bg-gray-900 p-4 rounded-xl border border-gray-800 space-y-3">
           <h3 class="font-bold text-xs text-white">रिचार्ज (न्यूनतम ₹150)</h3>
-          <p class="text-[10px] text-gray-400">UPI ID: ${MY_UPI_ID} पर पेमेंट करके UTR और स्क्रीनशॉट अपलोड करें।</p>
+          
+          <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 text-center space-y-2">
+            <p class="text-[11px] text-gray-300">QR Code scan karein ya Bank Details se payment karein:</p>
+            <div class="flex justify-center">
+              <div class="w-28 h-28 bg-white p-1 rounded-lg flex items-center justify-center">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&cu=INR" alt="QR Code" class="w-full h-full object-contain">
+              </div>
+            </div>
+            <div class="text-[10px] text-gray-400 space-y-0.5 text-left bg-gray-900 p-2 rounded-lg border border-gray-800">
+              <p><span class="text-gray-300 font-bold">UPI ID:</span> ${MY_UPI_ID}</p>
+              <p><span class="text-gray-300 font-bold">A/C No:</span> 38290100001234</p>
+              <p><span class="text-gray-300 font-bold">IFSC:</span> SBIN0001234</p>
+              <p><span class="text-gray-300 font-bold">Name:</span> GlowSkincare</p>
+            </div>
+          </div>
+
+          <p class="text-[10px] text-gray-400">Payment karne ke baad 12 anko ki UTR ID aur screenshot upload karein.</p>
           <form onsubmit="handleRecharge(event)" class="space-y-3">
-            <input type="number" id="recAmt" min="150" placeholder="राशि (₹)" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-            <input type="text" id="recUtr" placeholder="12 अंकों की UTR आईडी" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
+            <input type="number" id="recAmt" min="150" placeholder="Rashi (₹)" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
+            <input type="text" id="recUtr" placeholder="12 anko ki UTR ID" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
             <input type="file" id="recImg" accept="image/*" required class="w-full text-xs text-gray-400">
-            <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">रिचार्ज सबमिट करें</button>
+            <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">Recharge Submit Karein</button>
           </form>
         </div>
       </div>
@@ -349,31 +365,68 @@ function logout() {
 
 function renderAdmin() {
   const pending = getStorage('glow_pending', []);
+  const history = getStorage('glow_approved_history', []);
+  const rejected = getStorage('glow_rejected_history', []);
+
   return `
-    <div class="p-4 space-y-4 text-xs text-white">
+    <div class="p-4 space-y-4 text-xs text-white pb-20">
       <div class="flex justify-between items-center bg-gray-900 p-3 rounded-xl border border-gray-800">
-        <h1 class="font-bold text-emerald-400">🛡️ Admin Panel</h1>
+        <h1 class="font-bold text-emerald-400">🛡️ Admin Dashboard</h1>
         <button onclick="isAdmin=false;render()" class="bg-emerald-600 px-3 py-1 rounded-lg">बाहर निकलें</button>
       </div>
-      <h3 class="font-bold">पेंडिंग रिचार्ज (${pending.length})</h3>
+
+      <h3 class="font-bold text-yellow-400">पेंडिंग रिचार्ज (${pending.length})</h3>
+      ${pending.length === 0 ? '<p class="text-gray-500">कोई पेंडिंग रिचार्ज नहीं है।</p>' : ''}
       ${pending.map(p => `
         <div class="bg-gray-900 p-3 rounded-xl border border-gray-800 space-y-2">
           <p>मोबाइल: ${p.phone} \vert{} राशि: ₹${p.amount}</p>
           <p class="text-yellow-400 font-mono">UTR: ${p.utr}</p>
           <img src="${p.img}" class="w-20 h-20 object-cover rounded">
-          <button onclick="approveRecharge(${p.id})" class="w-full py-1.5 bg-emerald-600 rounded-lg font-bold">Approve</button>
+          <div class="flex gap-2">
+            <button onclick="approveRecharge(${p.id})" class="flex-1 py-1.5 bg-emerald-600 rounded-lg font-bold">Approve</button>
+            <button onclick="disapproveRecharge(${p.id})" class="flex-1 py-1.5 bg-red-600 rounded-lg font-bold">Disapprove</button>
+          </div>
         </div>
       `).join('')}
+
+      <div class="border-t border-gray-800 pt-4 mt-4">
+        <h3 class="font-bold text-emerald-400">अप्रूव्ड रिचार्ज हिस्ट्री (${history.length})</h3>
+        ${history.length === 0 ? '<p class="text-gray-500 mt-2">कोई पुरानी हिस्ट्री नहीं है।</p>' : ''}
+        <div class="space-y-2 mt-2">
+          ${history.map(h => `
+            <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 text-[11px] flex justify-between items-center">
+              <div>
+                <p class="text-gray-300">मोबाइल: ${h.phone}</p>
+                <p class="text-emerald-400 font-bold">₹${h.amount} (UTR:${h.utr})</p>
+              </div>
+              <span class="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-1 rounded">Approved</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="border-t border-gray-800 pt-4 mt-4">
+        <h3 class="font-bold text-red-400">डिस्अप्रूव्ड रिचार्ज हिस्ट्री (${rejected.length})</h3>
+        ${rejected.length === 0 ? '<p class="text-gray-500 mt-2">कोई अस्वीकृत हिस्ट्री नहीं है।</p>' : ''}
+        <div class="space-y-2 mt-2">
+          ${rejected.map(r => `
+            <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 text-[11px] flex justify-between items-center">
+              <div>
+                <p class="text-gray-300">मोबाइल: ${r.phone}</p>
+                <p class="text-red-400 font-bold">₹${r.amount} (UTR:${r.utr})</p>
+              </div>
+              <span class="text-[10px] bg-red-950 text-red-300 px-2 py-1 rounded">Disapproved</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
     </div>
   `;
 }
 
 function approveRecharge(id) {
-  // कन्फर्मेशन पॉप-अप
   const isConfirmed = confirm("क्या आप वाकई इस रिचार्ज को अप्रूव करना चाहते हैं?");
-  if (!isConfirmed) {
-    return; // अगर Cancel कर दिया, तो कुछ नहीं होगा
-  }
+  if (!isConfirmed) return;
 
   let pending = getStorage('glow_pending', []);
   const req = pending.find(p => p.id === id);
@@ -385,11 +438,42 @@ function approveRecharge(id) {
     setStorage('glow_users', users);
   }
 
+  let history = getStorage('glow_approved_history', []);
+  history.unshift({
+    phone: req.phone,
+    amount: req.amount,
+    utr: req.utr,
+    time: new Date().toLocaleString()
+  });
+  setStorage('glow_approved_history', history);
+
   pending = pending.filter(p => p.id !== id);
   setStorage('glow_pending', pending);
   alert('रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!');
   render();
 }
 
+function disapproveRecharge(id) {
+  const isConfirmed = confirm("क्या आप वाकई इस रिचार्ज को डिस्अप्रूव (रद्द) करना चाहते हैं?");
+  if (!isConfirmed) return;
+
+  let pending = getStorage('glow_pending', []);
+  const req = pending.find(p => p.id === id);
+  if (!req) return;
+
+  let rejected = getStorage('glow_rejected_history', []);
+  rejected.unshift({
+    phone: req.phone,
+    amount: req.amount,
+    utr: req.utr,
+    time: new Date().toLocaleString()
+  });
+  setStorage('glow_rejected_history', rejected);
+
+  pending = pending.filter(p => p.id !== id);
+  setStorage('glow_pending', pending);
+  alert('रिचार्ज को डिस्अप्रूव कर दिया गया है!');
+  render();
+}
+
 render();
-      
