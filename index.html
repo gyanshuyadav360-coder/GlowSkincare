@@ -7,9 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-950 flex justify-center items-center min-h-screen text-gray-100 font-sans">
-  <div id="app" class="w-full max-w-md bg-gray-900 shadow-2xl min-h-screen relative overflow-hidden border border-gray-800 flex flex-col justify-between">
-    <!-- Dynamic Content Area -->
-  </div>
+  <div id="app" class="w-full max-w-md bg-gray-900 shadow-2xl min-h-screen relative overflow-hidden border border-gray-800 flex flex-col justify-between"></div>
 
   <script>
     const MY_UPI_ID = "gyanshukumar01@ptyes";
@@ -25,6 +23,7 @@
     let currentSession = localStorage.getItem('glow_session') || null;
     let currentTab = 'home';
     let isAdmin = false;
+    let isReg = false;
 
     function render() {
       const app = document.getElementById('app');
@@ -68,9 +67,8 @@
       render();
     }
 
-    let isReg = false;
-    function toggleAuthMode() {
-      isReg = !isReg;
+    function setAuthMode(regStatus) {
+      isReg = regStatus;
       render();
     }
 
@@ -80,8 +78,8 @@
           <div class="w-full bg-gray-900 rounded-3xl p-6 border border-gray-800 shadow-xl">
             <h1 class="text-2xl font-black text-emerald-400 text-center mb-6">✨ GlowSkincare ✨</h1>
             <div class="flex bg-gray-950 p-1 rounded-2xl mb-6 border border-gray-800">
-              <button onclick="isReg=false;render()" class="flex-1 py-2 text-xs font-bold rounded-xl ${!isReg?'bg-emerald-600 text-white':'text-gray-400'}">लॉगिन</button>
-              <button onclick="isReg=true;render()" class="flex-1 py-2 text-xs font-bold rounded-xl ${isReg?'bg-emerald-600 text-white':'text-gray-400'}">रजिस्टर</button>
+              <button onclick="setAuthMode(false)" class="flex-1 py-2 text-xs font-bold rounded-xl ${!isReg?'bg-emerald-600 text-white':'text-gray-400'}">लॉगिन</button>
+              <button onclick="setAuthMode(true)" class="flex-1 py-2 text-xs font-bold rounded-xl ${isReg?'bg-emerald-600 text-white':'text-gray-400'}">रजिस्टर</button>
             </div>
             <form onsubmit="handleAuthSubmit(event)" class="space-y-3">
               <input type="text" id="phone" placeholder="मोबाइल नंबर" required class="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
@@ -117,18 +115,8 @@
         const inviteCodeInput = document.getElementById('inviteCode').value.trim();
 
         if (users[phone]) {
-          alert('यह नंबर पहले से रजिस्टर्ड है!');
+          alert('यह नंबर पहले से रजिस्टर्ड है! कृपया लॉगिन करें।');
           return;
-        }
-
-        let referredBy = null;
-        if (inviteCodeInput) {
-          for (let p in users) {
-            if (users[p].inviteCode === inviteCodeInput) {
-              referredBy = p;
-              break;
-            }
-          }
         }
 
         users[phone] = {
@@ -145,8 +133,7 @@
           bankLocked: false,
           bankDetails: null,
           myPlans: [],
-          withdrawHistory: [],
-          referralMode: 'commission'
+          withdrawHistory: []
         };
 
         setStorage('glow_users', users);
