@@ -33,7 +33,7 @@
 
   <script type="text/babel">
     function App() {
-      const MY_UPI_ID = "gyanshukumar01@ptyes"; 
+      const MY_UPI_ID = "gyanshu@paytm"; 
       const ADMIN_SECRET_PASS = "admin786";
 
       const [currentUserPhone, setCurrentUserPhone] = React.useState(() => {
@@ -44,7 +44,9 @@
       const [isAdminMode, setIsAdminMode] = React.useState(false);
 
       const [phoneInput, setPhoneInput] = React.useState('');
-      const [passInput, setPassInput] = React.useState('');
+      const [usernameInput, setUsernameInput] = React.useState('');
+      const [loginPassInput, setLoginPassInput] = React.useState('');
+      const [withdrawPassInput, setWithdrawPassInput] = React.useState('');
       const [inviteInput, setInviteInput] = React.useState('');
       const [isRegistering, setIsRegistering] = React.useState(false);
 
@@ -56,6 +58,7 @@
       const [utrInput, setUtrInput] = React.useState('');
       const [screenshotImage, setScreenshotImage] = React.useState('');
       const [withdrawAmount, setWithdrawAmount] = React.useState('');
+      const [userWithdrawPassInput, setUserWithdrawPassInput] = React.useState('');
 
       const [bankName, setBankName] = React.useState('');
       const [accNo, setAccNo] = React.useState('');
@@ -99,14 +102,14 @@
         e.preventDefault();
         const registeredUsers = getAllUsers();
 
-        if (phoneInput === "admin" && passInput === ADMIN_SECRET_PASS) {
+        if (phoneInput === "admin" && loginPassInput === ADMIN_SECRET_PASS) {
           setIsAdminMode(true);
           return;
         }
 
         if (isRegistering) {
-          if (!phoneInput || !passInput || !otpInput) {
-            alert('कृपया सभी फ़ील्ड और OTP भरें');
+          if (!phoneInput || !usernameInput || !loginPassInput || !withdrawPassInput || !otpInput) {
+            alert('कृपया मोबाइल नंबर, यूजरनेम, लॉगिन पासवर्ड, विथड्रॉल पासवर्ड और OTP सभी फ़ील्ड भरें!');
             return;
           }
           if (otpInput !== generatedOtp) {
@@ -136,9 +139,13 @@
 
           const newUser = {
             phone: phoneInput,
-            password: passInput,
+            username: usernameInput.trim(),
+            loginPassword: loginPassInput,
+            withdrawPassword: withdrawPassInput,
             inviteCode: generateInviteCode(),
             referredBy: referredByPhone,
+            referralMode: 'commission', // Default 2% commission mode
+            inviteCount: 0,
             rechargeWallet: 0,
             withdrawWallet: 0,
             productIncome: 0,
@@ -147,8 +154,13 @@
             bankDetails: null,
             bankLocked: false,
             myPlans: [],
-            withdrawHistory: [] // [{ amount, date }]
+            withdrawHistory: []
           };
+
+          // Update referrer count if valid
+          if (referredByPhone && registeredUsers[referredByPhone]) {
+            registeredUsers[referredByPhone].inviteCount = (registeredUsers[referredByPhone].inviteCount || 0) + 1;
+          }
 
           registeredUsers[phoneInput] = newUser;
           localStorage.setItem('glow_users', JSON.stringify(registeredUsers));
@@ -158,8 +170,8 @@
           alert('सफलतापूर्वक रजिस्ट्रेशन हो गया!');
 
         } else {
-          if (!phoneInput || !passInput) {
-            alert('कृपया मोबाइल नंबर और पासवर्ड दर्ज करें');
+          if (!phoneInput || !loginPassInput) {
+            alert('कृपया मोबाइल नंबर और लॉगिन पासवर्ड दर्ज करें');
             return;
           }
           if (!registeredUsers[phoneInput]) {
@@ -168,8 +180,8 @@
             return;
           }
           const existingUser = registeredUsers[phoneInput];
-          if (existingUser.password !== passInput) {
-            alert('गलत पासवर्ड! कृपया सही पासवर्ड डालें।');
+          if (existingUser.loginPassword !== loginPassInput) {
+            alert('गलत लॉगिन पासवर्ड! कृपया सही पासवर्ड डालें।');
             return;
           }
           localStorage.setItem('glow_current_session', phoneInput);
@@ -187,6 +199,7 @@
       const [, setForceRender] = React.useState(0);
       const triggerRefresh = () => setForceRender(prev => prev + 1);
 
+      // Buy Plan & Referral Logic (2% commission or milestone rewards)
       const handleBuyPlan = () => {
         const planPrice = 150;
         const currentCount = (user.myPlans || []).filter(p => p.id === 1).length;
@@ -219,16 +232,33 @@
         u.spinChances += 1;
         u.myPlans = [...(u.myPlans || []), newPlan];
 
+        // Referral reward distribution based on referrer's chosen mode
         if (u.referredBy && allUsers[u.referredBy]) {
-          const commission = planPrice * 0.10;
-          allUsers[u.referredBy].withdrawWallet += commission;
+          const refUser = allUsers[u.referredBy];
+          if (refUser.referralMode === 'commission') {
+            const commission = planPrice * 0.02; // 2% commission
+            refUser.withdrawWallet += commission;
+          } else {
+            // Milestone mode reward check
+            const invCount = refUser.inviteCount || 0;
+            let rewardBonus = 0;
+            if (invCount === 5) rewardBonus = 100;
+            else if (invCount === 10) rewardBonus = 250;
+            else if (invCount === 50) rewardBonus = 1400;
+            else if (invCount === 100) rewardBonus = 3000;
+
+            if (rewardBonus > 0 && !refUser.milestoneClaimed) {
+              refUser.withdrawWallet += rewardBonus;
+              refUser.milestoneClaimed = true; // one-time milestone credit or per rule
+            }
+          }
         }
 
         allUsers[currentUserPhone] = u;
         localStorage.setItem('glow_users', JSON.stringify(allUsers));
         triggerRefresh();
 
-        alert('प्लान सफलतापूर्वक खरीद लिया गया है! (रेफरर को 10% कमीशन भेज दिया गया है)');
+        alert('प्लान सफलतापूर्वक खरीद लिया गया है! (रेफरल रिवॉर्ड अपडेट कर दिया गया है)');
       };
 
       const handleClaimPlan = (purchaseId) => {
@@ -266,7 +296,6 @@
         }
       };
 
-      // Minimum Recharge Limit: Rs. 150
       const handleRechargeSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(rechargeAmount);
@@ -291,6 +320,7 @@
         const newReq = {
           id: Date.now(),
           phone: currentUserPhone,
+          username: user.username,
           amount: amt,
           utr: utrInput.trim(),
           screenshot: screenshotImage,
@@ -320,16 +350,19 @@
         const updatedList = pendingList.filter(r => r.id !== reqId);
         localStorage.setItem('glow_pending_recharges', JSON.stringify(updatedList));
         triggerRefresh();
-        alert(`यूज़र ${req.phone} (UTR: ${req.utr}) का ₹${req.amount} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
+        alert(`यूज़र ${req.username} (${req.phone}) का ₹${req.amount} का रिचार्ज सफलतापूर्वक अप्रूव कर दिया गया है!`);
       };
 
-      // Withdrawal Limits: Min Rs. 200 & Max 2 times per day
       const handleWithdrawSubmit = (e) => {
         e.preventDefault();
         const amt = parseFloat(withdrawAmount);
 
         if (!user.bankLocked) {
           alert('कृपया पैसे निकालने से पहले अपनी बैंक डिटेल्स सेव करें!');
+          return;
+        }
+        if (!userWithdrawPassInput || userWithdrawPassInput !== user.withdrawPassword) {
+          alert('गलत विथड्रॉल पासवर्ड! कृपया सही विथड्रॉल पासवर्ड दर्ज करें।');
           return;
         }
         if (!amt || amt < 200) {
@@ -341,7 +374,6 @@
           return;
         }
 
-        // Check Today's withdrawal count (Max 2 times per day)
         const todayStr = new Date().toDateString();
         const history = user.withdrawHistory || [];
         const todayCount = history.filter(item => new Date(item.timestamp).toDateString() === todayStr).length;
@@ -359,6 +391,7 @@
         allUsers[currentUserPhone] = u;
         localStorage.setItem('glow_users', JSON.stringify(allUsers));
         setWithdrawAmount('');
+        setUserWithdrawPassInput('');
         triggerRefresh();
         alert(`₹${amt} का विथड्रॉल अनुरोध सफलतापूर्वक दर्ज हो गया है! (आज का ${todayCount + 1}/2 विथड्रॉल)`);
       };
@@ -441,20 +474,31 @@
           let botReply = "मैं आपकी बात समझ नहीं पा रहा हूँ। आप मुझसे 'रिचार्ज कैसे करें?', 'पैसे कब मिलेंगे?', 'विथड्रॉल नियम क्या हैं?' या 'प्लान डिटेल्स' के बारे में पूछ सकते हैं।";
           const lower = userMsg.toLowerCase();
 
-          if (lower.includes('recharge') || lower.includes('रिचार्ज') || lower.includes('add money') || lower.includes('paisa')) {
+          if (lower.includes('recharge') || lower.includes('रिचार्ज') || lower.includes('paisa')) {
             botReply = "💳 **रिचार्ज नियम:**\n- न्यूनतम रिचार्ज: ₹150\n- UTR और स्क्रीनशॉट अपलोड करना अनिवार्य है।\n- रात 12 बजे तक आपके वॉलेट में राशि जोड़ी जाएगी।";
-          } else if (lower.includes('withdraw') || lower.includes('विथड्रॉल') || lower.includes('nikalna') || lower.includes('bank')) {
-            botReply = "🏦 **विथड्रॉल नियम:**\n- न्यूनतम विथड्रॉल: ₹200\n- दैनिक सीमा: 1 दिन में अधिकतम केवल 2 बार विथड्रॉल कर सकते हैं।\n- बैंक डिटेल्स प्रोफाइल में सेव होनी चाहिए।";
-          } else if (lower.includes('plan') || lower.includes('starter') || lower.includes('invest') || lower.includes('₹150')) {
-            botReply = "💎 **इन्वेस्टमेंट प्लान डिटेल्स:**\n- प्लान मूल्य: ₹150\n- दैनिक आय: ₹100\n- अवधि: 49 दिन (कुल रिटर्न ₹4900)\n- दोस्तों को इनवाइट करने पर उनके प्लान खरीदने का 10% कमीशन मिलता है!";
-          } else if (lower.includes('spin') || lower.includes('wheel') || lower.includes('लकी')) {
-            botReply = "🎡 **लकी स्पिन:** हर नया प्लान खरीदने पर आपको 1 स्पिन चांस मिलता है!";
-          } else if (lower.includes('hello') || lower.includes('hi') || lower.includes('नमस्ते') || lower.includes('hey')) {
+          } else if (lower.includes('withdraw') || lower.includes('विथड्रॉल') || lower.includes('nikalna')) {
+            botReply = "🏦 **विथड्रॉल नियम:**\n- न्यूनतम विथड्रॉल: ₹200\n- दैनिक सीमा: 1 दिन में अधिकतम 2 बार\n- विथड्रॉल पासवर्ड और बैंक डिटेल्स अनिवार्य है।";
+          } else if (lower.includes('plan') || lower.includes('invest') || lower.includes('₹150')) {
+            botReply = "💎 **इन्वेस्टमेंट प्लान:** ₹150 का प्लान खरीदने पर प्रतिदिन ₹100 (49 दिनों तक) मिलते हैं।";
+          } else if (lower.includes('referral') || lower.includes('invaite') || lower.includes('कमीशन')) {
+            botReply = "👥 **रेफरल विकल्प:**\nआप 'Invite' टैब में जाकर 2% कमीशन या 5/10/50/100 इनवाइट्स पर मिलने वाले फिक्स बोनस (₹100, ₹250, ₹1400, ₹3000) में से कोई भी विकल्प चुन सकते हैं!";
+          } else if (lower.includes('hello') || lower.includes('hi') || lower.includes('नमस्ते')) {
             botReply = "नमस्ते! GlowSkincare में आपका स्वागत है। बताइए, आज मैं आपकी क्या सहायता कर सकता हूँ?";
           }
 
           setAiMessages([...newMsgs, { sender: 'ai', text: botReply }]);
         }, 900);
+      };
+
+      // Toggle Referral Mode (Commission vs Milestone)
+      const handleToggleReferralMode = (mode) => {
+        const allUsers = getAllUsers();
+        const u = allUsers[currentUserPhone];
+        u.referralMode = mode;
+        allUsers[currentUserPhone] = u;
+        localStorage.setItem('glow_users', JSON.stringify(allUsers));
+        triggerRefresh();
+        alert(`रेफरल मोड सफलतापूर्वक बदलकर "${mode === 'commission' ? '2% प्रत्येक निवेश कमीशन' : 'टीम माइलस्टोन रिवॉर्ड्स (5/10/50/100)'}" कर दिया गया है!`);
       };
 
       // --- ADMIN VIEW ---
@@ -465,7 +509,7 @@
             <div className="flex justify-between items-center mb-6 bg-gray-900 p-4 rounded-2xl border border-gray-800 shadow-lg">
               <div>
                 <h1 className="text-xl font-bold text-emerald-400">🛡️ Admin Dashboard</h1>
-                <p className="text-xs text-gray-400">UTR और स्क्रीनशॉट मिलान करें</p>
+                <p className="text-xs text-gray-400">यूजरनेम, UTR और स्क्रीनशॉट मिलान करें</p>
               </div>
               <button onClick={() => setIsAdminMode(false)} className="bg-emerald-600 hover:bg-emerald-700 transition px-3 py-1.5 rounded-xl text-xs font-semibold shadow">
                 ऐप पर जाएं
@@ -483,6 +527,7 @@
                   <div key={req.id} className="bg-gray-900 p-4 rounded-2xl border border-gray-800 space-y-3 shadow-md animate-fadeIn">
                     <div className="flex justify-between items-start">
                       <div>
+                        <p className="text-xs text-gray-400">यूजरनेम: <span className="font-bold text-white">{req.username}</span></p>
                         <p className="text-xs text-gray-400">मोबाइल: <span className="font-bold text-white">{req.phone}</span></p>
                         <p className="text-lg font-bold text-emerald-400 my-0.5">₹{req.amount}</p>
                       </div>
@@ -532,7 +577,7 @@
               <div className="text-center mb-8">
                 <h1 className="text-3xl font-black text-emerald-400 tracking-wide animate-pulse">✨ GlowSkincare ✨</h1>
                 <p className="text-gray-400 text-xs mt-1">
-                  {isRegistering ? 'नया अकाउंट रजिस्टर करें (OTP आवश्यक)' : 'अपने रजिस्टर्ड नंबर से लॉगिन करें'}
+                  {isRegistering ? 'नया अकाउंट रजिस्टर करें (डबल पासवर्ड सुरक्षा)' : 'अपने रजिस्टर्ड नंबर से लॉगिन करें'}
                 </p>
               </div>
 
@@ -551,16 +596,17 @@
                 </button>
               </div>
 
-              <form onSubmit={handleAuth} className="space-y-4">
+              <form onSubmit={handleAuth} className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">मोबाइल नंबर</label>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">मोबाइल नंबर *</label>
                   <div className="flex gap-2">
                     <input
                       type="text"
-                      placeholder="मोबाइल नंबर दर्ज करें"
+                      placeholder="10 अंकों का मोबाइल नंबर"
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
-                      className="flex-1 px-4 py-3 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
+                      required
+                      className="flex-1 px-4 py-2.5 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
                     />
                     {isRegistering && (
                       <button
@@ -575,28 +621,60 @@
                 </div>
 
                 {isRegistering && (
-                  <div className="animate-fadeIn">
-                    <label className="block text-xs font-medium text-gray-400 mb-1">OTP दर्ज करें</label>
-                    <input
-                      type="text"
-                      placeholder="4 अंकों का OTP डालें"
-                      value={otpInput}
-                      onChange={(e) => setOtpInput(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs tracking-widest font-bold text-white transition"
-                    />
+                  <div className="animate-fadeIn space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">यूजरनेम (Username) *</label>
+                      <input
+                        type="text"
+                        placeholder="अपना यूजरनेम दर्ज करें"
+                        value={usernameInput}
+                        onChange={(e) => setUsernameInput(e.target.value)}
+                        required
+                        className="w-full px-4 py-2.5 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">OTP दर्ज करें *</label>
+                      <input
+                        type="text"
+                        placeholder="4 अंकों का OTP डालें"
+                        value={otpInput}
+                        onChange={(e) => setOtpInput(e.target.value)}
+                        required
+                        className="w-full px-4 py-2.5 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs tracking-widest font-bold text-white transition"
+                      />
+                    </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-1">पासवर्ड</label>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">
+                    {isRegistering ? 'लॉगिन पासवर्ड *' : 'पासवर्ड *'}
+                  </label>
                   <input
                     type="password"
-                    placeholder="पासवर्ड दर्ज करें"
-                    value={passInput}
-                    onChange={(e) => setPassInput(e.target.value)}
-                    className="w-full px-4 py-3 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
+                    placeholder="लॉगिन पासवर्ड दर्ज करें"
+                    value={loginPassInput}
+                    onChange={(e) => setLoginPassInput(e.target.value)}
+                    required
+                    className="w-full px-4 py-2.5 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
                   />
                 </div>
+
+                {isRegistering && (
+                  <div className="animate-fadeIn">
+                    <label className="block text-xs font-medium text-gray-400 mb-1">विथड्रॉल पासवर्ड (अलग पासवर्ड) *</label>
+                    <input
+                      type="password"
+                      placeholder="पैसे निकालते समय यह पासवर्ड लगेगा"
+                      value={withdrawPassInput}
+                      onChange={(e) => setWithdrawPassInput(e.target.value)}
+                      required
+                      className="w-full px-4 py-2.5 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
+                    />
+                  </div>
+                )}
 
                 {isRegistering && (
                   <div className="animate-fadeIn">
@@ -606,7 +684,7 @@
                       placeholder="यदि हो तो इनविटेशन कोड डालें"
                       value={inviteInput}
                       onChange={(e) => setInviteInput(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-gray-950 border border-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs text-white transition"
                     />
                   </div>
                 )}
@@ -635,10 +713,10 @@
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center font-black text-black text-base shadow-inner">
-                      {user.phone.slice(-2)}
+                      {user.username.slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-white">{user.phone}</h4>
+                      <h4 className="font-bold text-sm text-white">{user.username}</h4>
                       <p className="text-[10px] text-emerald-400 font-mono">ID {user.phone.slice(-6)} 📋</p>
                     </div>
                   </div>
@@ -735,7 +813,7 @@
                   <div onClick={() => setCurrentTab('invite')} className="bg-gray-900 p-3.5 rounded-2xl border border-gray-800 flex justify-between items-center cursor-pointer hover:border-gray-700 transition">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">🎁</div>
-                      <span className="text-xs font-semibold text-white">My Rewards (10% Referral)</span>
+                      <span className="text-xs font-semibold text-white">My Rewards (Referral)</span>
                     </div>
                     <span className="text-gray-500">&gt;</span>
                   </div>
@@ -820,7 +898,7 @@
                   <div className="bg-gray-900 p-4 rounded-2xl border border-gray-800 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-bold">👥</div>
                     <div>
-                      <h4 className="font-bold text-xs text-white">Referral Rewards (10% Bonus)</h4>
+                      <h4 className="font-bold text-xs text-white">Referral Rewards (2% or Milestone)</h4>
                       <p className="text-[10px] text-gray-400">📅 2026-09-02 08:18:30</p>
                     </div>
                   </div>
@@ -881,10 +959,11 @@
               <div className="p-4 space-y-4 animate-fadeIn">
                 <div className="bg-gray-900 p-4 rounded-2xl shadow-sm border border-gray-800 flex items-center space-x-3">
                   <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center font-bold text-base">
-                    {user.phone.slice(-2)}
+                    {user.username.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h4 className="font-bold text-sm text-white">{user.phone}</h4>
+                    <h4 className="font-bold text-sm text-white">{user.username}</h4>
+                    <p className="text-[11px] text-gray-400">Mob: {user.phone}</p>
                     <p className="text-xs text-emerald-400 font-semibold">VIP Level {user.vipLevel}</p>
                   </div>
                 </div>
@@ -998,19 +1077,35 @@
                   <h3 className="font-bold text-sm text-white">कमाई विथड्रॉल करें (न्यूनतम ₹200)</h3>
                   <p className="text-[11px] text-gray-400">
                     उपलब्ध बैलेंस: <span className="font-bold text-emerald-400">₹{user.withdrawWallet.toFixed(2)}</span><br/>
-                    नियम: न्यूनतम ₹200 और 1 दिन में केवल 2 बार ही विथड्रॉल कर सकते हैं।
+                    नियम: न्यूनतम ₹200, 1 दिन में केवल 2 बार, और **विथड्रॉल पासवर्ड** अनिवार्य है।
                   </p>
                   
                   <form onSubmit={handleWithdrawSubmit} className="space-y-3">
-                    <input
-                      type="number"
-                      min="200"
-                      placeholder="विथड्रॉल राशि (न्यूनतम ₹200)"
-                      value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
-                      required
-                      className="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white transition"
-                    />
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-400 mb-1">विथड्रॉल राशि (रुपये) *</label>
+                      <input
+                        type="number"
+                        min="200"
+                        placeholder="विथड्रॉल राशि (न्यूनतम ₹200)"
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white transition"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-gray-400 mb-1">विथड्रॉल पासवर्ड *</label>
+                      <input
+                        type="password"
+                        placeholder="अपना विथड्रॉल पासवर्ड दर्ज करें"
+                        value={userWithdrawPassInput}
+                        onChange={(e) => setUserWithdrawPassInput(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white transition"
+                      />
+                    </div>
+
                     <button type="submit" className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow transition active:scale-95">
                       बैंक में भेजें
                     </button>
@@ -1056,7 +1151,7 @@
               </div>
             )}
 
-            {/* ================= LUCKY WHEEL WITH VISIBLE PRIZES & ANIMATIONS ================= */}
+            {/* ================= LUCKY WHEEL ================= */}
             {currentTab === 'spin' && (
               <div className="p-4 animate-fadeIn">
                 <div className="bg-gray-900 rounded-2xl p-6 text-center shadow-lg border border-gray-800 flex flex-col items-center space-y-4">
@@ -1067,7 +1162,6 @@
                     उपलब्ध स्पिन चांस: {user.spinChances}
                   </div>
 
-                  {/* Prizes Display Grid */}
                   <div className="grid grid-cols-4 gap-2 w-full text-center">
                     <div className="bg-gray-950 p-2.5 rounded-xl border border-gray-800 text-[11px] font-bold text-yellow-400 shadow-sm">₹10</div>
                     <div className="bg-gray-950 p-2.5 rounded-xl border border-gray-800 text-[11px] font-bold text-yellow-400 shadow-sm">₹20</div>
@@ -1100,15 +1194,41 @@
               </div>
             )}
 
+            {/* ================= REFERRAL / INVITE TAB (WITH 2 MODES) ================= */}
             {currentTab === 'invite' && (
-              <div className="p-4 animate-fadeIn">
+              <div className="p-4 space-y-4 animate-fadeIn">
                 <div className="bg-gray-900 rounded-2xl p-6 text-center shadow-sm border border-gray-800 space-y-4">
                   <h3 className="font-bold text-base text-white">दोस्तों को इनवाइट करें</h3>
-                  <p className="text-xs text-gray-400">जब आपका दोस्त आपके कोड से जुड़कर कोई प्लान खरीदेगा, तो आपको उसका **10% कमीशन** मिलेगा!</p>
+                  
+                  {/* Referral Mode Selector */}
+                  <div className="bg-gray-950 p-3 rounded-2xl border border-gray-800 space-y-2 text-left">
+                    <p className="text-[11px] font-bold text-emerald-400">रेफरल रिवॉर्ड मोड चुनें:</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleToggleReferralMode('commission')}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-bold transition ${user.referralMode === 'commission' ? 'bg-emerald-600 text-white shadow' : 'bg-gray-900 text-gray-400'}`}
+                      >
+                        मोड A: प्रत्येक निवेश का 2%
+                      </button>
+                      <button
+                        onClick={() => handleToggleReferralMode('milestone')}
+                        className={`flex-1 py-2 px-2 rounded-xl text-[10px] font-bold transition ${user.referralMode === 'milestone' ? 'bg-emerald-600 text-white shadow' : 'bg-gray-900 text-gray-400'}`}
+                      >
+                        मोड B: टीम माइलस्टोन बोनस
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      {user.referralMode === 'commission' 
+                        ? '✅ आपके दोस्त जब भी प्लान खरीदेंगे, आपको उनके निवेश का 2% मिलेगा।' 
+                        : '✅ 5 इनवाइट्स पर ₹100, 10 पर ₹250, 50 पर ₹1400, और 100 पर ₹3000 मिलेंगे!'}
+                    </p>
+                  </div>
+
                   <div className="bg-gray-950 p-4 rounded-xl border border-gray-800">
                     <p className="text-[10px] text-gray-400 mb-1">आपका इनविटेशन कोड</p>
                     <h2 className="text-2xl font-black text-emerald-400 tracking-wider">{user.inviteCode}</h2>
                   </div>
+
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(`https://www.greatskincare7.ru/?invitation_code=${user.inviteCode}`);
@@ -1122,7 +1242,7 @@
               </div>
             )}
 
-            {/* ================= IMPROVED AI SUPPORT CHAT TAB ================= */}
+            {/* ================= AI SUPPORT CHAT TAB ================= */}
             {currentTab === 'aiChat' && (
               <div className="p-4 animate-fadeIn">
                 <div className="bg-gray-900 rounded-2xl shadow-sm border border-gray-800 flex flex-col h-[460px] relative overflow-hidden">
