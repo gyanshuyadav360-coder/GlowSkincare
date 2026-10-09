@@ -1,4 +1,3 @@
-const MY_UPI_ID = "gyanshu@paytm";
 const ADMIN_PASS = "admin786";
 
 function getStorage(key, defaultVal) {
@@ -98,7 +97,6 @@ function handleAuthSubmit(e) {
   if (isReg) {
     const username = document.getElementById('username').value.trim();
     const withdrawPass = document.getElementById('withdrawPass').value.trim();
-    const inviteCodeInput = document.getElementById('inviteCode').value.trim();
 
     if (users[phone]) {
       alert('यह नंबर पहले से रजिस्टर्ड है! कृपया लॉगिन करें।');
@@ -188,25 +186,25 @@ function renderTabContent(tab, user) {
           <h3 class="font-bold text-xs text-white">रिचार्ज (न्यूनतम ₹150)</h3>
           
           <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 text-center space-y-2">
-            <p class="text-[11px] text-gray-300">QR Code scan karein ya Bank Details se payment karein:</p>
+            <p class="text-[11px] text-gray-300">QR Code scan karke payment karein:</p>
             <div class="flex justify-center">
               <div class="w-28 h-28 bg-white p-1 rounded-lg flex items-center justify-center">
-                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=${MY_UPI_ID}&pn=GlowSkincare&cu=INR" alt="QR Code" class="w-full h-full object-contain">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" alt="QR Code" class="w-full h-full object-contain">
               </div>
-            </div>
-            <div class="text-[10px] text-gray-400 space-y-0.5 text-left bg-gray-900 p-2 rounded-lg border border-gray-800">
-              <p><span class="text-gray-300 font-bold">UPI ID:</span> ${MY_UPI_ID}</p>
-              <p><span class="text-gray-300 font-bold">A/C No:</span> 38290100001234</p>
-              <p><span class="text-gray-300 font-bold">IFSC:</span> SBIN0001234</p>
-              <p><span class="text-gray-300 font-bold">Name:</span> GlowSkincare</p>
             </div>
           </div>
 
-          <p class="text-[10px] text-gray-400">Payment karne ke baad 12 anko ki UTR ID aur screenshot upload karein.</p>
+          <p class="text-[10px] text-gray-400">Payment karne ke baad apna naam, bank details, UTR ID aur screenshot yahan bharein:</p>
           <form onsubmit="handleRecharge(event)" class="space-y-3">
             <input type="number" id="recAmt" min="150" placeholder="Rashi (₹)" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
+            <input type="text" id="senderName" placeholder="Apna Naam / Account Holder Name" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
+            <input type="text" id="senderAcc" placeholder="Apna Bank Account Number" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
+            <input type="text" id="senderIfsc" placeholder="Bank IFSC Code" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
             <input type="text" id="recUtr" placeholder="12 anko ki UTR ID" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
-            <input type="file" id="recImg" accept="image/*" required class="w-full text-xs text-gray-400">
+            <div>
+              <label class="text-[10px] text-gray-400 mb-1 block">Payment Screenshot Upload Karein:</label>
+              <input type="file" id="recImg" accept="image/*" required class="w-full text-xs text-gray-400 bg-gray-950 p-2 rounded-xl border border-gray-800">
+            </div>
             <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">Recharge Submit Karein</button>
           </form>
         </div>
@@ -280,6 +278,9 @@ function buyPlan() {
 function handleRecharge(e) {
   e.preventDefault();
   const amt = parseFloat(document.getElementById('recAmt').value);
+  const senderName = document.getElementById('senderName').value.trim();
+  const senderAcc = document.getElementById('senderAcc').value.trim();
+  const senderIfsc = document.getElementById('senderIfsc').value.trim();
   const utr = document.getElementById('recUtr').value.trim();
   const fileInput = document.getElementById('recImg');
   
@@ -287,11 +288,24 @@ function handleRecharge(e) {
     alert('न्यूनतम रिचार्ज ₹150 है!');
     return;
   }
+  if (!fileInput.files || fileInput.files.length === 0) {
+    alert('कृपया पेमेंट का स्क्रीनशॉट अपलोड करें!');
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = function(event) {
     const pending = getStorage('glow_pending', []);
-    pending.push({ id: Date.now(), phone: currentSession, amount: amt, utr, img: event.target.result });
+    pending.push({ 
+      id: Date.now(), 
+      phone: currentSession, 
+      senderName, 
+      senderAcc, 
+      senderIfsc, 
+      amount: amt, 
+      utr, 
+      img: event.target.result 
+    });
     setStorage('glow_pending', pending);
     alert('रिचार्ज अनुरोध भेज दिया गया है!');
     switchTab('home');
@@ -379,7 +393,9 @@ function renderAdmin() {
       ${pending.length === 0 ? '<p class="text-gray-500">कोई पेंडिंग रिचार्ज नहीं है।</p>' : ''}
       ${pending.map(p => `
         <div class="bg-gray-900 p-3 rounded-xl border border-gray-800 space-y-2">
-          <p>मोबाइल: ${p.phone} \vert{} राशि: ₹${p.amount}</p>
+          <p>मोबाइल: ${p.phone} \vert{} नाम: ${p.senderName || 'N/A'}</p>
+          <p class="text-gray-300">बैंक A/C: ${p.senderAcc \vert{}\vert{} 'N/A'} \vert{} IFSC:${p.senderIfsc || 'N/A'}</p>
+          <p class="text-emerald-400 font-bold">राशि: ₹${p.amount}</p>
           <p class="text-yellow-400 font-mono">UTR: ${p.utr}</p>
           <img src="${p.img}" class="w-20 h-20 object-cover rounded">
           <div class="flex gap-2">
@@ -396,7 +412,8 @@ function renderAdmin() {
           ${history.map(h => `
             <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 text-[11px] flex justify-between items-center">
               <div>
-                <p class="text-gray-300">मोबाइल: ${h.phone}</p>
+                <p class="text-gray-300">मोबाइल: ${h.phone} \vert{} नाम: ${h.senderName || 'N/A'}</p>
+                <p class="text-gray-400 text-[10px]">A/C: ${h.senderAcc \vert{}\vert{} 'N/A'} (${h.senderIfsc || 'N/A'})</p>
                 <p class="text-emerald-400 font-bold">₹${h.amount} (UTR:${h.utr})</p>
               </div>
               <span class="text-[10px] bg-emerald-950 text-emerald-300 px-2 py-1 rounded">Approved</span>
@@ -412,7 +429,8 @@ function renderAdmin() {
           ${rejected.map(r => `
             <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 text-[11px] flex justify-between items-center">
               <div>
-                <p class="text-gray-300">मोबाइल: ${r.phone}</p>
+                <p class="text-gray-300">मोबाइल: ${r.phone} \vert{} नाम: ${r.senderName || 'N/A'}</p>
+                <p class="text-gray-400 text-[10px]">A/C: ${r.senderAcc \vert{}\vert{} 'N/A'} (${r.senderIfsc || 'N/A'})</p>
                 <p class="text-red-400 font-bold">₹${r.amount} (UTR:${r.utr})</p>
               </div>
               <span class="text-[10px] bg-red-950 text-red-300 px-2 py-1 rounded">Disapproved</span>
@@ -441,6 +459,9 @@ function approveRecharge(id) {
   let history = getStorage('glow_approved_history', []);
   history.unshift({
     phone: req.phone,
+    senderName: req.senderName,
+    senderAcc: req.senderAcc,
+    senderIfsc: req.senderIfsc,
     amount: req.amount,
     utr: req.utr,
     time: new Date().toLocaleString()
@@ -464,6 +485,9 @@ function disapproveRecharge(id) {
   let rejected = getStorage('glow_rejected_history', []);
   rejected.unshift({
     phone: req.phone,
+    senderName: req.senderName,
+    senderAcc: req.senderAcc,
+    senderIfsc: req.senderIfsc,
     amount: req.amount,
     utr: req.utr,
     time: new Date().toLocaleString()
