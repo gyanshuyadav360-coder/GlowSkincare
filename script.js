@@ -194,7 +194,7 @@ function renderTabContent(tab, user) {
             </div>
           </div>
 
-          <p class="text-[10px] text-gray-400">Payment karne ke baad apna naam, bank details, UTR ID aur screenshot yahan bharein:</p>
+          <p class="text-[10px] text-gray-400">Payment karne ke baad apna naam, bank account details, UTR ID aur screenshot yahan bharein:</p>
           <form onsubmit="handleRecharge(event)" class="space-y-3">
             <input type="number" id="recAmt" min="150" placeholder="Rashi (₹)" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
             <input type="text" id="senderName" placeholder="Apna Naam / Account Holder Name" required class="w-full p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs text-white">
