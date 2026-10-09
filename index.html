@@ -14,6 +14,8 @@
     .btn { width: 100%; padding: 11px; background: #059669; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; }
     .btn-red { background: #dc2626; }
     .btn-gray { background: #374151; }
+    .btn-opt { flex: 1; padding: 8px; font-size: 11px; border: 1px solid #374151; background: #0b0f19; color: #9ca3af; border-radius: 6px; cursor: pointer; }
+    .btn-opt.selected { background: #059669; color: #fff; font-weight: bold; border-color: #059669; }
     .bottom-nav { position: fixed; bottom: 0; width: 100%; max-width: 420px; background: #111827; border-top: 1px solid #1f2937; display: flex; justify-content: space-around; padding: 10px 0; }
     .nav-btn { background: none; border: none; color: #9ca3af; font-size: 11px; cursor: pointer; }
     .nav-btn.active { color: #34d399; font-weight: bold; }
@@ -23,7 +25,6 @@
 </head>
 <body>
   <div class="container" id="app">
-    <!-- डिफ़ॉल्ट रूप से यह स्क्रीन तुरंत लोड होगी (नो ब्लैक स्क्रीन) -->
     <div style="padding: 24px; margin-top: auto; margin-bottom: auto;">
       <h2 style="text-align: center; color: #34d399; margin-bottom: 20px;">✨ GlowSkincare ✨</h2>
       <div style="display: flex; gap: 8px; margin-bottom: 16px;">
@@ -48,6 +49,7 @@
     let currentSession = localStorage.getItem('glow_session') || null;
     let currentTab = 'home';
     let isAdmin = false;
+    let selectedPayMethod = 'qr';
 
     function getStorage(k, def) {
       try { return JSON.parse(localStorage.getItem(k)) || def; } catch(e) { return def; }
@@ -95,6 +97,11 @@
         localStorage.setItem('glow_session', p);
         renderMain();
       }
+    }
+
+    function setPayMethod(method) {
+      selectedPayMethod = method;
+      renderMain();
     }
 
     function renderMain() {
@@ -150,20 +157,39 @@
       } else if (currentTab === 'recharge') {
         content = `
           <div style="padding:16px;">
-            <h3>रिचार्ज करें</h3>
-            <div class="card" style="text-align:center; margin-top:10px;">
-              <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करके पेमेंट करें:</p>
-              <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px;">
+            <h3>रिचार्ज (न्यूनतम ₹150)</h3>
+            
+            <p style="font-size:11px; color:#9ca3af; margin:10px 0 6px 0;">पेमेंट माध्यम चुनें:</p>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+              <button onclick="setPayMethod('qr')" class="btn-opt ${selectedPayMethod==='qr'?'selected':''}">📱 QR Code Pay</button>
+              <button onclick="setPayMethod('bank')" class="btn-opt ${selectedPayMethod==='bank'?'selected':''}">🏦 Bank Account Pay</button>
             </div>
+
+            ${selectedPayMethod === 'qr' ? `
+              <div class="card" style="text-align:center;">
+                <p style="font-size:12px; margin-bottom:8px;">QR कोड स्कैन करके भुगतान करें:</p>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=upi://pay?pa=merchant@paytm&pn=GlowSkincare&cu=INR" style="width:140px; height:140px; border-radius:8px;">
+              </div>
+            ` : `
+              <div class="card">
+                <p style="font-size:12px; color:#34d399; font-weight:bold; margin-bottom:6px;">बैंक ट्रांसफर विकल्प:</p>
+                <p style="font-size:11px; color:#9ca3af;">नीचे अपना बैंक खाता विवरण भरें जिससे पेमेंट की जाएगी।</p>
+              </div>
+            `}
+
             <form onsubmit="handleRecSubmit(event)">
               <input type="number" id="ramt" min="150" placeholder="राशि (₹)" required class="input-field">
-              <input type="text" id="rname" placeholder="खाता धारक का नाम" required class="input-field">
-              <input type="text" id="racc" placeholder="बैंक खाता संख्या" required class="input-field">
-              <input type="text" id="rifsc" placeholder="IFSC कोड" required class="input-field">
+              <input type="text" id="rname" placeholder="अपना नाम / खाता धारक का नाम" required class="input-field">
+              
+              ${selectedPayMethod === 'bank' ? `
+                <input type="text" id="racc" placeholder="अपना बैंक खाता संख्या" required class="input-field">
+                <input type="text" id="rifsc" placeholder="बैंक IFSC कोड" required class="input-field">
+              ` : ''}
+
               <input type="text" id="rutr" placeholder="12 अंकों का UTR नंबर" required class="input-field">
-              <label style="font-size:11px; color:#9ca3af;">स्क्रीनशॉट चुनें:</label>
+              <label style="font-size:11px; color:#9ca3af; display:block; margin-bottom:4px;">पेमेंट स्क्रीनशॉट अपलोड करें (अनिवार्य):</label>
               <input type="file" id="rfile" accept="image/*" required class="input-field">
-              <button type="submit" class="btn">सबमिट करें</button>
+              <button type="submit" class="btn">रिचार्ज सबमिट करें</button>
             </form>
           </div>
         `;
@@ -214,15 +240,25 @@
       e.preventDefault();
       const amt = Number(document.getElementById('ramt').value);
       const name = document.getElementById('rname').value.trim();
-      const acc = document.getElementById('racc').value.trim();
-      const ifsc = document.getElementById('rifsc').value.trim();
+      const acc = document.getElementById('racc') ? document.getElementById('racc').value.trim() : 'N/A (QR Pay)';
+      const ifsc = document.getElementById('rifsc') ? document.getElementById('rifsc').value.trim() : 'N/A';
       const utr = document.getElementById('rutr').value.trim();
       const file = document.getElementById('rfile').files[0];
 
       const reader = new FileReader();
       reader.onload = function(evt) {
         const p = getStorage('glow_pending', []);
-        p.push({ id: Date.now(), phone: currentSession, amt, name, acc, ifsc, utr, img: evt.target.result });
+        p.push({ 
+          id: Date.now(), 
+          phone: currentSession, 
+          method: selectedPayMethod === 'qr' ? 'QR Code' : 'Bank Transfer',
+          amt, 
+          name, 
+          acc, 
+          ifsc, 
+          utr, 
+          img: evt.target.result 
+        });
         setStorage('glow_pending', p);
         alert('रिचार्ज अनुरोध भेज दिया गया!');
         currentTab = 'home';
@@ -284,7 +320,8 @@
         html += `
           <div class="card" style="margin-top:8px;">
             <p>यूजर: ${item.phone} | नाम: ${item.name}</p>
-            <p>खाता: ${item.acc} (${item.ifsc})</p>
+            <p style="font-size:11px; color:#9ca3af;">माध्यम: <b>${item.method}</b></p>
+            ${item.acc !== 'N/A (QR Pay)' ? `<p style="font-size:11px; color:#9ca3af;">खाता: ${item.acc} (${item.ifsc})</p>` : ''}
             <p style="color:#34d399;">राशि: ₹${item.amt} | UTR: ${item.utr}</p>
             <img src="${item.img}" style="width:80px; height:80px; object-fit:cover; margin:6px 0; border-radius:4px;">
             <div style="display:flex; gap:8px;">
@@ -297,12 +334,12 @@
 
       html += `<h4 style="margin-top:16px; color:#34d399;">अप्रूव्ड लिस्ट (${h.length})</h4>`;
       h.forEach(item => {
-        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (UTR: ${item.utr})</div>`;
+        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (${item.method} | UTR: ${item.utr})</div>`;
       });
 
       html += `<h4 style="margin-top:16px; color:#f87171;">डिस्अप्रूव्ड लिस्ट (${r.length})</h4>`;
       r.forEach(item => {
-        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (UTR: ${item.utr})</div>`;
+        html += `<div class="card" style="font-size:11px; margin-top:6px;">${item.phone} - ₹${item.amt} (${item.method} | UTR: ${item.utr})</div>`;
       });
 
       html += `</div>`;
